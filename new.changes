@@ -1,0 +1,23 @@
+Mon Aug 16 09:52:05 1999  Michal Vocu  <michal@sal>
+
+	* server.c:
+	more verbose messages; changed type of response status to char (to
+	avoid problems with encoding integers on different architectures);
+	added error table initialization
+
+	* netio.c:
+	removed htons(port) (this is done in krb5_getportbyname); now uses
+	krb5_read,write_message instead of sending message length (not
+	encoded! aarggh) and message data separately
+
+	* krb525_convert.h: added port parameter
+
+	* client.c:
+	krb525_creds are now allocated dynamically; added port parameter to
+	krb525_convert call
+
+	* krb525_convert.c:
+	added port parameter; replaced krb5_free_data with krb5_data_free;
+	changed type of response into char; now returns error when received
+	error response status from server
+

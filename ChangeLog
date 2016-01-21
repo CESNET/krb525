@@ -1,0 +1,96 @@
+Mon Aug 16 09:52:05 1999  Michal Vocu  <michal@sal>
+
+	* server.c:
+	more verbose messages; changed type of response status to char (to
+	avoid problems with encoding integers on different architectures);
+	added error table initialization
+
+	* netio.c:
+	removed htons(port) (this is done in krb5_getportbyname); now uses
+	krb5_read,write_message instead of sending message length (not
+	encoded! aarggh) and message data separately
+
+	* krb525_convert.h: added port parameter
+
+	* client.c:
+	krb525_creds are now allocated dynamically; added port parameter to
+	krb525_convert call
+
+	* krb525_convert.c:
+	added port parameter; replaced krb5_free_data with krb5_data_free;
+	changed type of response into char; now returns error when received
+	error response status from server
+
+Fri Jul 30 10:10:21 1999  Michal Vocu  <michal@sal>
+
+	* Makefile.am: now linking client with the library
+
+	* krb525_convert.h, krb525_convert.c: added host list parameter
+
+	* client.c: fixed bug in setting target server principal
+	fixed bug in changing ccache owner (skip "FILE:" in cache name)
+
+Thu Jul 29 14:45:20 1999  Michal Vocu  <michal@sal>
+
+	* krb525_convert.h, krb525_convert.c: clean up
+
+	* configure.in: added check for MIPS ABI
+
+	* client.c: changed to use krb525_convert
+
+	* Makefile.am:
+	added krb525_convert.h to headers, added top_srcdir to includes
+
+	* krb525_convert.h: added error message variable
+
+	* krb525_convert.c: added error messages
+
+	* netio.h, netio.c: Initial revision
+
+	* krb525_convert.h: added krb525_creds parameter to krb525_convert
+
+	* krb525_convert.c: added some meaning to the code
+
+Wed Jul 28 13:35:53 1999  Michal Vocu  <michal@sal>
+
+	* krb525_convert.c: it compiles now, but requires major cleanup
+
+	* auth_con.h, auth_con.c: Initial revision
+
+	* configure.in: added libtool check
+
+	* Makefile.am: added libkrb525.la library
+
+	* configure.in, Makefile.am, srv_conf.h, srv_conf.c, server.h, server.c, krb525_convert.h, krb525.h, h_db.h, h_db.c, client.c, acconfig.h, krb525_convert.c:
+	Initial revision
+
+Fri Oct 17 14:30:23 1997  Von Welch  <vwelch@computer.ncsa.uiuc.edu>
+
+	* server.c: progname was not getting set correctly. Use progname
+	in call to setup_auth_context() to be consistant with client.
+
+	* client.c: progname was not getting set correctly. Fixed bug in
+	call to setup_auth_context() that caused failures with clients with
+	instances in their names. 
+
+	* auth_con.c (setup_auth_context): Use sin_port and not sin_addr
+	in call to krb5_gen_portaddr(). This keeps us from having cache
+	conflicts when krb525 and krb525d are running on the same machine.
+
+Tue Oct  7 09:43:39 1997  Von Welch  <vwelch@computer.ncsa.uiuc.edu>
+
+	* client.c (get_creds_with_keytab, get_creds_with_ccache): 
+	Added options to passed arguments. Changed callers.
+	Code will not make tickets from keytab forwardable.
+	
+Thu Oct  2 10:44:36 1997  Von Welch  <vwelch@computer.ncsa.uiuc.edu>
+
+	* ChangeLog: Created ChangeLog file.
+
+	* client.c [AFS_KRB5]: Added exec of aklog
+
+	* acconfig.h: Added AFS_KRB5
+
+	* configure.in: Check for using AFS-KRB5 migration kit and define
+	AFS_KRB5 in config.h if we are.
+

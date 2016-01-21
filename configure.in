@@ -1,0 +1,246 @@
+#
+# configure.in for krb525
+#
+# $Id: configure.in,v 1.2 2012/05/16 13:16:27 kouril Exp $
+
+AC_INIT(krb525.h)
+AM_INIT_AUTOMAKE(krb525, 0.1.2)
+
+# Create config.h from config.h.in
+#
+AM_CONFIG_HEADER(config.h)
+
+# Get the prefix from the location of "kinit"
+#
+AC_PREFIX_PROGRAM(kinit)
+
+AC_ARG_WITH([cc],
+   [  --with-cc=CC                Specify the compiler to use],
+   [CC=${withval}
+     AC_MSG_RESULT([C compiler is $CC])
+     ],
+   [AC_PROG_CC])
+
+
+# Set the compiler options
+#
+AC_ARG_WITH([ccopts],
+   [  --with-ccopts=OPTS          Specify the compiler options to use],
+   [CCOPTS=${withval}],
+   [CCOPTS=""])
+
+AC_CANONICAL_HOST
+
+case "$host" in
+*-*-solaris*)
+	SYSLIBS=-lresolv
+	;;
+esac
+
+AC_MIPS_ABI
+CC="${CC} ${abi}"
+libdir="$libdir$abilibdirext"
+
+# Checks for typedefs, structures, and compiler characteristics.
+#
+AC_C_CONST
+AC_TYPE_UID_T
+AC_TYPE_SIZE_T
+
+AC_CHECK_HEADERS(stdlib.h)
+
+AM_PROG_LIBTOOL
+
+# Checks for library functions.
+#
+AC_TYPE_SIGNAL
+AC_CHECK_FUNCS(regcomp socket strdup strerror)
+
+
+# Shall we use Kerberos 5 DB code?
+#
+AC_CACHE_CHECK([if we are using krb5 db code],
+  [krb525_cv_k5_db_code],
+  [AC_ARG_WITH(k5-db-code,
+    [  --without-k5-db-code        Disable Kerberos 5 DB code],
+    [krb525_cv_k5_db_code=${withval}],
+    [krb525_cv_k5_db_code=yes])
+  ])
+
+
+# Get the Kerberos 5 Install Path
+#
+AC_ARG_WITH(krb5,
+  [  --with-krb5=PATH            Location of Kerberos 5 libraries and include files],
+  [krb525_cv_krb5_path=${withval}],
+  [krb525_cv_krb5_path=${prefix}])
+krb5dir=${krb525_cv_krb5_path}
+
+
+# Get the Kerberos 5 Build Path
+#
+AC_ARG_WITH(krb5-obj,
+ [  --with-krb5-obj=PATH        Location of Kerberos 5 build directory],
+ [krb525_cv_krb5_obj_path=${withval}],
+ [krb525_cv_krb5_obj_path=${prefix}])
+krb5objdir=${krb525_cv_krb5_obj_path}
+
+
+# Get the Kerberos 5 Source Path
+#
+AC_ARG_WITH(krb5-src,
+  [  --with-krb5-src=PATH        Location of Kerberos 5 source directory],
+  [krb525_cv_krb5_src_path=${withval}],
+  [krb525_cv_krb5_src_path=${prefix}])
+krb5srcdir=${krb525_cv_krb5_src_path}
+
+
+# Get our Installation Path
+#
+AC_ARG_WITH(install-path,
+  [  --with-install-path=PATH    Target installation path],
+  [krb525_cv_install_path=${withval}],
+  [krb525_cv_install_path=${prefix}])
+INSTALLPATH=${krb525_cv_install_path}
+AC_DEFINE_UNQUOTED(INSTALLPATH, "$INSTALLPATH")
+
+
+# Figure out rest of stuff we need for Makefile
+#
+K5LIBPATH="-L${krb5dir}/lib${abilibdirext}"
+K5INCPATH="-I${krb5dir}/include"
+
+# Check for Heimdal
+#
+AC_MSG_CHECKING(whether we are using Heimdal)
+ac_save_cflags=${CFLAGS}
+CFLAGS="${K5INCPATH} ${CFLAGS}"
+AC_TRY_COMPILE([#include <krb5.h>],
+               [ char *tmp = heimdal_version; ],
+               [ AC_MSG_RESULT(yes)
+      KRB5LIBS="-lkrb5 -lcom_err -lasn1 -lroken"
+      ac_heimdal="yes"
+                 AC_DEFINE(HEIMDAL) ],
+               [ AC_MSG_RESULT(no) 
+      KRB5LIBS="-lkrb5 -lcrypto -lcom_err"
+      ac_heimdal="no"
+               ]
+)
+CFLAGS="$ac_save_cflags"
+
+# Do we have the AFS-KRB5 migration kit installed?
+#
+if test "$ac_heimdal" = "no"; then
+save_LDFLAGS=$LDFLAGS
+LDFLAGS="-L${krb525_cv_krb5_path}/lib${abilibdirext}"
+AC_CHECK_LIB(krb5, krb5_appdefault_boolean,
+  [krb525_cv_afs_krb5=yes],
+  [krb525_cv_afs_krb5=no],
+  [-lcom_err]
+)
+LDFLAGS=$save_LDFLAGS
+AC_MSG_CHECKING([if we are using AFS-KRB5 migration kit])
+AC_ARG_WITH(afs-krb5,
+  [  --with-afs-krb5             We have the NRL AFS-KRB5 Migration Kit],
+  [krb525_cv_afs_krb5=${withval}],
+  [krb525_cv_afs_krb5="no"]
+)
+AC_MSG_RESULT([${krb525_cv_afs_krb5}])
+if test "$krb525_cv_afs_krb5" = "yes" ; then
+  AC_DEFINE(AFS_KRB5)
+fi
+fi
+
+if test "$krb525_cv_k5_db_code" = "yes" ; then
+  AC_DEFINE(K5_DB_CODE)
+if test "$ac_heimdal" = "yes"; then
+  K5_DB_SRC_FILES="h_db.c"
+  K5_DB_OBJ_FILES="h_db.o"
+  K5_DB_INC_FILES="h_db.h"  
+  K5_DB_LIBS="-lhdb "
+  AC_CHECK_LIB(db, dbopen,
+	[K5_DB_LIBS="$K5_DB_LIBS -ldb"], , [-ldb]
+  )
+else
+  K5_DB_SRC_FILES="k5_db.c"
+  K5_DB_OBJ_FILES="k5_db.o"
+  K5_DB_INC_FILES="k5_db.h"
+  if test ! -f "${krb5objdir}/lib${abilibdirext}/libdb.a" ; then
+    AC_MSG_ERROR("Kerberos database library not found. Did you specify --with-krb5-obj?")
+    exit 1
+  fi
+  K5_DB_LIBS="-lkadm5srv -lkdb5 -lgssrpc ${krb5objdir}/lib${abilibdirext}/libdb.a"
+  if test ! -f "${krb5srcdir}/include/k5-int.h" ; then
+    AC_MSG_ERROR("k5-int.h not found. Did you specify --with-krb5-src?")
+    exit 1
+  fi
+  K5_DB_INC_PATH="-I${krb5objdir}/include -I${krb5objdir}/include/krb5 -I${krb5srcdir}/include -I${krb5srcdir}/include/krb5"
+fi
+fi   
+
+
+# Check to see if we need "netlibs" (specifically, libnsl and libsocket)
+#
+uname=`(uname) 2>/dev/null`
+if test "$uname" != IRIX -a "$uname" != IRIX64 ; then
+	AC_CHECK_LIB(socket, socket,
+[	SYSLIBS="$SYSLIBS -lsocket"],  ,-lnsl)
+	AC_CHECK_LIB(nsl, t_bind,
+[	SYSLIBS="$SYSLIBS -lnsl"])
+fi
+
+
+# Figure out which regular expression parser to use.
+#  (taken from krb5/lib/krb5/os/configure.in)
+# Try, in order, regcomp, compile/step
+#
+AC_HAVE_HEADERS(regex.h regexpr.h)
+#
+# regcomp (which is present but non-functional on Solaris 2.4)
+#
+AC_CACHE_CHECK([for working regcomp],
+  [ac_cv_func_regcomp],
+  [AC_TRY_RUN([
+#include <sys/types.h>
+#include <regex.h>
+regex_t x; regmatch_t m;
+int main() { return regcomp(&x,"pat.*",0) || regexec(&x,"pattern",1,&m,0); }
+    ], ac_cv_func_regcomp=yes, ac_cv_func_regcomp=no, ac_cv_func_regcomp=no)])
+#
+# compre/step
+#
+save_LIBS=$LIBS
+LIBS=-lgen
+# this will fail if there's no compile/step in -lgen, or if there's
+# no -lgen.  This is fine.
+AC_CHECK_FUNCS(compile step, have_func_compile=yes)
+LIBS=$save_LIBS
+
+if test "$ac_cv_func_regcomp" = yes ; then
+  AC_MSG_RESULT([Using re_comp for regular expression matching])
+  AC_DEFINE(HAVE_REGCOMP)
+elif test "$have_func_compile" = yes ; then
+  AC_MSG_RESULT([Using compile/step for regular expression matching])
+  AC_CHECK_LIB(gen, compile, [SERVERLIBS="$SERVERLIBS -lgen"])
+else
+  AC_MSG_WARN([No support for regular expression matching])
+fi
+
+
+AC_SUBST(CC)
+AC_SUBST(CCOPTS)
+AC_SUBST(K5LIBPATH)
+AC_SUBST(K5INCPATH)
+AC_SUBST(SYSLIBS)
+AC_SUBST(SERVERLIBS)
+AC_SUBST(INSTALLPATH)
+AC_SUBST(K5_DB_SRC_FILES)
+AC_SUBST(K5_DB_OBJ_FILES)
+AC_SUBST(K5_DB_INC_FILES)
+AC_SUBST(K5_DB_LIB_PATH)
+AC_SUBST(K5_DB_LIBS)	
+AC_SUBST(K5_DB_INC_PATH)
+AC_SUBST(KRB5LIBS)
+AC_SUBST(DEFS)
+
+AC_OUTPUT(Makefile)

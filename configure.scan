@@ -1,0 +1,36 @@
+dnl Process this file with autoconf to produce a configure script.
+AC_INIT(version.h)
+
+dnl Checks for programs.
+AC_PROG_CC
+
+dnl Checks for libraries.
+dnl Replace `main' with a function in -lasn1:
+AC_CHECK_LIB(asn1, main)
+dnl Replace `main' with a function in -lcom_err:
+AC_CHECK_LIB(com_err, main)
+dnl Replace `main' with a function in -ldb:
+AC_CHECK_LIB(db, main)
+dnl Replace `main' with a function in -ldes:
+AC_CHECK_LIB(des, main)
+dnl Replace `main' with a function in -lhdb:
+AC_CHECK_LIB(hdb, main)
+dnl Replace `main' with a function in -lkrb5:
+AC_CHECK_LIB(krb5, main)
+dnl Replace `main' with a function in -lroken:
+AC_CHECK_LIB(roken, main)
+
+dnl Checks for header files.
+AC_HEADER_STDC
+AC_CHECK_HEADERS(syslog.h)
+
+dnl Checks for typedefs, structures, and compiler characteristics.
+AC_C_CONST
+AC_TYPE_UID_T
+AC_TYPE_SIZE_T
+
+dnl Checks for library functions.
+AC_TYPE_SIGNAL
+AC_CHECK_FUNCS(regcomp socket strdup strerror)
+
+AC_OUTPUT(sgi_65/Makefile Makefile)

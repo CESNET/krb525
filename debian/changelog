@@ -1,0 +1,29 @@
+krb525 (1.2+dk1) unstable; urgency=low
+
+  * Changed library path
+
+ -- Dan Kouril <kouril@ics.muni.cz>  Tue, 15 Sep 2015 14:24:14 +0200
+
+krb525 (1.2) unstable; urgency=low
+
+  * Made it build with current heimdal
+
+ -- Dan Kouril <kouril@ics.muni.cz>  Fri, 11 Sep 2015 20:08:14 +0200
+
+krb525 (1.1+dk1) unstable; urgency=low
+
+  * Adjusted installation paths
+
+ -- Dan Kouril <kouril@ics.muni.cz>  Fri, 15 Jun 2012 10:52:06 +0200
+
+krb525 (1.1) unstable; urgency=low
+
+  * Works with current Heimdal
+
+ -- Dan Kouril <kouril@ics.muni.cz>  Wed,  16 May 2012 14:32:54 +0100
+
+krb525 (1.0+deb6) unstable; urgency=low
+
+  * prastara verze
+
+ -- Mirek Ruda <ruda@ics.muni.cz>  Wed,  15 Dec 2010 14:34:51 +0200
