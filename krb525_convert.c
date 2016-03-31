@@ -121,90 +121,6 @@ get_krb525_creds_ccache(krb5_context context,
 
 
 static krb5_error_code
-get_krb525_creds_keytab(krb5_context context,
-			krb5_keytab keytab,
-			char *cname,
-			char *krb525_host,
-			krb5_authdata auth_data,
-			krb5_creds **krb525_creds)
-{
-  krb5_error_code            retval;
-  krb5_keytab_key_proc_args *a;
-  krb5_preauthtype           preauth[] = { KRB5_PADATA_ENC_TIMESTAMP, KRB5_PADATA_NONE };
-  krb5_creds                 creds;
-
-  memset((char *)&creds, 0, sizeof(creds));
-  
-  /* Parse client name */
-  if(retval=krb5_parse_name(context, cname, &creds.client)) {
-    sprintf(krb525_convert_error, "%s while parsing name %s",
-	    error_message(retval), cname);
-    return retval;
-  }
-
-  /*
-   * Parse service name to authenticate with. (Default is
-   * KRB525_SERVICE/<hostname>)
-   */
-  if (retval = krb5_sname_to_principal(context, krb525_host, KRB525_SERVICE,
-				       KRB5_NT_SRV_HST, &creds.server)) {
-    sprintf(krb525_convert_error, "%s while creating server name for %s/%s",
-	    error_message(retval), KRB525_SERVICE, krb525_host);
-    return(retval);
-  }
-
-  /* Get default keytab if not specified */
-  if(keytab == NULL) {
-    if (retval = krb5_kt_default(context, &keytab)) {
-      sprintf(krb525_convert_error, "%s while getting default keytab",
-	      error_message(retval));
-      return retval;
-    }
-  }
-
-  /* Allocate and fill in arguments */
-  a = malloc(sizeof(*a));
-  if (a == NULL)
-    return ENOMEM;
-
-  a->principal = creds.client;
-  a->keytab    = keytab;
-
-  /* Allocate room for server credentials */
-  *krb525_creds = malloc(sizeof(**krb525_creds));
-  if(*krb525_creds == NULL) {
-    sprintf(krb525_convert_error, "not enough memory allocating credentials");
-    free(a);
-    return ENOMEM;
-  }
-     
-  /* XXX - get TGT first, then get ticket for krb525d with proper authorization data */
-
-  /* Get credentials for the server */
-  if(retval=krb5_get_in_cred(context,
-			     KEYTAB_DEFAULT_TKT_OPTIONS,
-			     NULL,   /* Addresses */
-			     NULL,   /* Encryption types */
-			     preauth, /* Preauthentication types */
-			     NULL,   /* Preauthentication data */
-			     krb5_keytab_key_proc,
-			     a,
-			     NULL,
-			     NULL,
-			     &creds,
-			     NULL)) {
-      sprintf(krb525_convert_error, "%s when getting credentials with keytab",
-	      error_message(retval));
-      free(a);
-      return retval;
-  }
-  
-  memcpy((char *)*krb525_creds, (char *)&creds, sizeof(**krb525_creds));
-  return(0);
-}
-
-
-static krb5_error_code
 krb525_connect(krb5_context context,
 #ifdef HEIMDAL
 	       krb5_realm          *realm,
@@ -529,35 +445,11 @@ krb525_convert_with_keytab(krb5_context context,
 			   krb5_creds   *in_creds,
 			   krb5_creds   *out_creds)
 {
-  int             sock;
-  char           *krb525_host;
-  krb5_creds     *krb525_creds;
-  krb5_error_code retval;
-
-#ifdef HEIMDAL
-  krb5_realm      *realm;
-#else
-  krb5_data       *realm;
-#endif
-
-  realm = &in_creds->server->realm;
-
-  /* Try to contact server and get server name */
-  if(retval=krb525_connect(context, realm, hosts, port, &sock, &krb525_host))
-    return(retval);
-
-  /* Get credentials for krb525d at the contacted host */
-  if(retval=get_krb525_creds_keytab(context, keytab, cname, krb525_host, 
-				    in_creds->authdata, &krb525_creds)) {
-    close(sock);
-    return(retval);
-  }
-
-  /* Convert credentials */
-  retval = krb525_do_convert(context, sock, krb525_creds, in_creds, out_creds);
-
-  close(sock);
-  return retval;
+  /* The implementation has been removed due to its utilization of deprecated calls
+	 and incompletness. If the call is ever needed, please refer to the VCS and
+	 fix it */
+	
+  return ENOSYS;
 }
 
 
