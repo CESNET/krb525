@@ -409,7 +409,13 @@ main(argc, argv)
 
       request.ticket = (krb5_ticket*)malloc(sizeof(krb5_ticket));
       
-      decode_Ticket(ticket_data.data, ticket_data.length, &request.tkt, &len);
+      retval = decode_Ticket(ticket_data.data, ticket_data.length, &request.tkt, &len);
+      if (retval) {
+          syslog(LOG_ERR, "decoding ticket from the request failed");
+          sprintf(errbuf, "The request is missing a valid ticket\n");
+          response_status = STATUS_ERROR;
+          goto respond;
+      }
 
       if(retval = _krb5_principalname2krb5_principal(context,
 					       &(request.ticket->server),
