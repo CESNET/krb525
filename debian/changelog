@@ -1,3 +1,10 @@
+krb525 (1.3) unstable; urgency=medium
+
+  * Clients builds and runs with MIT Kerberos libraries
+  * A crash of the server was fixed
+
+ -- Daniel Kouril <kouril@ics.muni.cz>  Fri, 01 Apr 2016 11:41:35 +0200
+
 krb525 (1.2+dk1) unstable; urgency=low
 
   * Changed library path
