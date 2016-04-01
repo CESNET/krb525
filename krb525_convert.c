@@ -26,9 +26,7 @@ static char vcid[] = "$Id: krb525_convert.c,v 1.1.1.1 2009/11/13 09:13:02 kouril
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#if 0
 #include <netdb.h>
-#endif
 #include <signal.h>
 #include <pwd.h>
 #include <errno.h>
@@ -45,6 +43,15 @@ extern char *malloc();
 #include "auth_con.h"
 #include "version.h"
 
+/* krb5_authdata is defined quite differently in MIT and Heimdal,
+   we better use a dedicated container to pass it over calls */
+typedef struct krb525_authdata {
+#ifdef HEIMDAL
+    krb5_authdata  data;
+#else
+    krb5_authdata  **data;
+#endif
+} krb525_authdata;
 
 /* Default options if we are authenticating from keytab */
 #define KEYTAB_DEFAULT_TKT_OPTIONS	KDC_OPT_FORWARDABLE
@@ -64,7 +71,7 @@ get_krb525_creds_ccache(krb5_context context,
 			krb5_ccache ccache,
 			char *cname,
 			char *krb525_host,
-			krb5_authdata auth_data,
+			krb525_authdata *auth_data,
 			krb5_creds **krb525_creds)
 {
   krb5_flags      gateway_options = GATEWAY_DEFAULT_TKT_OPTIONS;
@@ -73,7 +80,7 @@ get_krb525_creds_ccache(krb5_context context,
 
   memset((char *)&in_creds, 0, sizeof(in_creds));
 
-  in_creds.authdata = auth_data;
+  in_creds.authdata = auth_data->data;
 
   /*
    * Get and parse client name to authenticate to krb525d with. If none
@@ -117,6 +124,18 @@ get_krb525_creds_ccache(krb5_context context,
 	    error_message(retval));
 
   return(retval);
+}
+
+static int
+krb525_getportbyname(const char *service, const char *proto, short default_port)
+{
+  struct servent *sp;
+
+  sp = getservbyname (service, proto);
+  if (sp)
+    return sp->s_port;
+
+  return htons(default_port);
 }
 
 
@@ -170,6 +189,7 @@ krb525_connect(krb5_context context,
   if(hosts) {
     krb525_hosts = hosts;
   } else {
+#ifdef HEIMDAL
     krb525_hosts = krb5_config_get_strings(context, NULL, "realms", *realm, "krb525_server", NULL);
     if(krb525_hosts == NULL) {
       /* Get list of possible server hosts (same as KDC server hosts) */
@@ -180,6 +200,15 @@ krb525_connect(krb5_context context,
       }
     } else 
       use_port = 1;
+#else
+    {
+      char *tmp;
+
+      /* N.B. there's a different location of the directive! */
+      krb5_appdefault_string(context, NULL, realm, "krb525_server", NULL, &tmp);
+      krb525_hosts = &tmp;
+    }
+#endif
   }
 
   /* If no host was found, return error */
@@ -188,7 +217,7 @@ krb525_connect(krb5_context context,
 
   /* Get default server port */
   if(port <= 0)
-    default_port = krb5_getportbyname(context, KRB525_SERVICE, "tcp", KRB525_PORT);
+    default_port = krb525_getportbyname(KRB525_SERVICE, "tcp", KRB525_PORT);
 
   /* Try to contact server */
   for (krb525_host_num = 0; krb525_host = krb525_hosts[krb525_host_num]; krb525_host_num++) {
@@ -291,7 +320,7 @@ krb525_do_convert(krb5_context context,
   
   /* Prepare to encrypt */
   if (retval = setup_auth_context(context, auth_context, &lsin, &rsin,
-				  NULL)) {
+				  "_525")) {
     sprintf(krb525_convert_error, "%s while setting authentication context\n",
 	    auth_con_error);
         return(retval);
@@ -304,13 +333,13 @@ krb525_do_convert(krb5_context context,
     return(retval);
   }
   message.length = strlen(message.data) + 1;
-  if (retval = send_encrypt(context, auth_context, sock, message)) {
-    krb5_data_free(&message);
+  retval = send_encrypt(context, auth_context, sock, message);
+  free(message.data);
+  if (retval) {
     sprintf(krb525_convert_error, "%s while sending client name\n",
 	    netio_error);
     return(retval);
   }
-  krb5_data_free(&message);
 
   /* Send target server name */
   if(retval=krb5_unparse_name(context, out_creds->server, (char **)&message.data)) {
@@ -319,13 +348,13 @@ krb525_do_convert(krb5_context context,
     return(retval);
   }
   message.length = strlen(message.data) + 1;
-  if (retval = send_encrypt(context, auth_context, sock, message)) {
-    krb5_data_free(&message);
+  retval = send_encrypt(context, auth_context, sock, message);
+  free(message.data);
+  if (retval) {
     sprintf(krb525_convert_error, "%s while sending server name\n",
 	    netio_error);
     return(retval);
   }
-  krb5_data_free(&message);
 
   /* Send my ticket to be massaged */
   message.data = in_creds->ticket.data;
@@ -357,6 +386,8 @@ krb525_do_convert(krb5_context context,
     /* Copy all relevant data from in_creds to out_creds
      * (client and server were already set by the caller).
      */
+    /* XXX Use copy_cred instead */
+#ifdef HEIMDAL
     copy_EncryptionKey(&in_creds->session, &out_creds->session);
     memcpy(&out_creds->times, &in_creds->times, sizeof(out_creds->times));
     krb5_data_copy(&out_creds->second_ticket,&in_creds->second_ticket, 
@@ -364,6 +395,16 @@ krb525_do_convert(krb5_context context,
     copy_AuthorizationData(&in_creds->authdata, &out_creds->authdata);
     krb5_copy_addresses(context, &in_creds->addresses, &out_creds->addresses);
     out_creds->flags = in_creds->flags;
+#else
+    krb5_copy_keyblock_contents(context, &in_creds->keyblock, &out_creds->keyblock);
+    memcpy(&out_creds->times, &in_creds->times, sizeof(out_creds->times));
+    out_creds->second_ticket.length = in_creds->second_ticket.length;
+    out_creds->second_ticket.data = malloc(out_creds->second_ticket.length);
+    memcpy(&out_creds->second_ticket.data, &in_creds->second_ticket.data, out_creds->second_ticket.length);
+    krb5_copy_authdata(context, in_creds->authdata, &out_creds->authdata);
+    krb5_copy_addresses(context, in_creds->addresses, &out_creds->addresses);
+    out_creds->ticket_flags = in_creds->ticket_flags;
+#endif
     
     /* Read new ticket from server */
     if ((retval = read_encrypt(context, auth_context, sock, &recv_data)) < 0) {
@@ -414,6 +455,7 @@ krb525_convert_with_ccache(krb5_context context,
 #else
   krb5_data       *realm;
 #endif
+  krb525_authdata   auth_data;
 
   realm = &in_creds->server->realm;
 
@@ -421,9 +463,11 @@ krb525_convert_with_ccache(krb5_context context,
   if(retval=krb525_connect(context, realm, hosts, port, &sock, &krb525_host))
     return(retval);
 
+  auth_data.data = in_creds->authdata;
+
   /* Get credentials for krb525d at the contacted host */
   if(retval=get_krb525_creds_ccache(context, ccache, cname, krb525_host, 
-				    in_creds->authdata, &krb525_creds)) {
+				    &auth_data, &krb525_creds)) {
     close(sock);
     return(retval);
   }

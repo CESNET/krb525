@@ -63,7 +63,7 @@ send_encrypt(krb5_context context,
     if ((retval = send_msg(context, fd, emessage)) == -1)
 	return -1;
 
-    krb5_xfree(emessage.data);
+    krb5_free_data_contents(context, &emessage);
     
     return retval;
 }
@@ -76,6 +76,7 @@ send_msg(krb5_context context,
 	 krb5_data message)
 {
     krb5_error_code	retval;
+    uint32_t	len;
 
 
 #ifdef HEIMDAL
@@ -87,9 +88,8 @@ send_msg(krb5_context context,
     }
 #else
     /* Send message length */
-    /* XXX - this ignores architecture differences */
-    if ((retval = krb5_net_write(context, fd, (char *)&(message.length),
-				 sizeof(message.length))) == -1) {
+    len = htonl(message.length);
+    if ((retval = krb5_net_write(context, fd, (char *)&len, 4)) == -1) {
 	sprintf(netio_error, "%s while writing message len",
 		strerror(errno));
 	return -1;
@@ -132,7 +132,7 @@ read_encrypt(krb5_context context,
 	return -1;
     }
 
-    krb5_xfree(emessage.data);
+    krb5_free_data_contents(context, &emessage);
     return retval;
 }
 
@@ -143,6 +143,7 @@ read_msg(krb5_context context,
 	 krb5_data *message)
 {
     krb5_error_code	retval;
+    uint8_t buf[4];
 
     
 #ifdef HEIMDAL
@@ -153,14 +154,15 @@ read_msg(krb5_context context,
     }
 #else
     /* Read message length */
-    if ((retval = krb5_net_read(context, fd, (char *)&(message->length),
-			       sizeof(message->length))) <= 0) {
+    if ((retval = krb5_net_read(context, fd, buf, 4)) <= 0) {
 	if (retval == 0)
 	    errno = ECONNABORTED;
 	sprintf(netio_error, "%s reading message length",
 		strerror(errno));
 	return -1;
     }
+
+    message->length = (buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3];
 
     if ((message->data = (char *) malloc(message->length)) == NULL) {
 	sprintf(netio_error, "malloc(%d) failed: %s",
@@ -175,7 +177,7 @@ read_msg(krb5_context context,
 	sprintf(netio_error, "%s reading message",
 		strerror(errno));
 	message->length = 0;
-	krb5_xfree(message->data);
+	free(message);
 	return -1;
     }
 #endif

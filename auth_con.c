@@ -11,6 +11,7 @@
 #endif
 
 #include <stdio.h>
+#include <string.h>
 #include "auth_con.h"
 
 char auth_con_error[255] = "No error";
@@ -32,6 +33,9 @@ setup_auth_context(krb5_context context,
 
 
 #ifndef HEIMDAL
+/* Setting ports isn't compatible with Heimdal, if this code
+   is enabled, it's not possible to have an interoperable setup */
+#if 0
     laddr.addrtype = ADDRTYPE_IPPORT;
     laddr.length = sizeof(localaddr->sin_port);
     laddr.contents = (krb5_octet *)&(localaddr->sin_port);
@@ -45,6 +49,7 @@ setup_auth_context(krb5_context context,
 		error_message(retval));
 	return retval;
     }
+#endif
 #endif
 
 #ifdef HEIMDAL

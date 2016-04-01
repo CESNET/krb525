@@ -125,7 +125,7 @@ get_creds_with_ccache(krb5_context context,
 
     memcpy((char *) creds, (char *) out_creds, sizeof(*creds));
 
-    krb5_xfree(out_creds);
+    free(out_creds);
 
     return retval;
 }
@@ -385,14 +385,6 @@ char *argv[];
 
     /* XXX Why is this signal() call here? */
     (void) signal(SIGPIPE, SIG_IGN);
-
-#ifdef HEIMDAL
-#else
-    if (!valid_cksumtype(CKSUMTYPE_CRC32)) {
-	com_err(progname, KRB5_PROG_SUMTYPE_NOSUPP, "while using CRC-32");
-	error_exit();
-    }
-#endif
 
     /*
      * Set default ticket options
@@ -683,10 +675,22 @@ char *argv[];
     creds.server = sprinc;
 
     /* Add original ticket as capability */
+#ifdef HEIMDAL
     creds.authdata.len = 1;
     creds.authdata.val = malloc(sizeof(*creds.authdata.val));
     creds.authdata.val[0].ad_type = KRB525_CAP_TICKET;
     creds.authdata.val[0].ad_data = creds.ticket;
+#else
+    creds.authdata = calloc(2, sizeof(krb5_authdata *));
+    creds.authdata[0] = calloc(1, sizeof(krb5_authdata));
+
+    creds.authdata[0]->magic = KV5M_AUTHDATA;
+    creds.authdata[0]->ad_type = KRB525_CAP_TICKET;
+    creds.authdata[0]->length = creds.ticket.length;
+    creds.authdata[0]->contents = (krb5_octet *) creds.ticket.data;
+
+    creds.authdata[1] = NULL;
+#endif
 
     target_creds.client = target_cprinc;
     target_creds.server = target_sprinc;
@@ -796,7 +800,7 @@ cleanup:
     /* XXX - lots of cleanup should be done here */
 
     if (krb525_hosts)
-	krb5_free_krbhst(context, krb525_hosts);
+	free(krb525_hosts);
 
     exit(exit_code);
 }
