@@ -127,6 +127,7 @@ AC_TRY_COMPILE([#include <krb5.h>],
                ]
 )
 CFLAGS="$ac_save_cflags"
+AM_CONDITIONAL([HEIMDAL], [test x$ac_heimdal = xyes])
 
 # Do we have the AFS-KRB5 migration kit installed?
 #
@@ -166,13 +167,11 @@ else
   K5_DB_OBJ_FILES="k5_db.o"
   K5_DB_INC_FILES="k5_db.h"
   if test ! -f "${krb5objdir}/lib${abilibdirext}/libdb.a" ; then
-    AC_MSG_ERROR("Kerberos database library not found. Did you specify --with-krb5-obj?")
-    exit 1
+    AC_MSG_WARN("Kerberos database library not found. Did you specify --with-krb5-obj?")
   fi
   K5_DB_LIBS="-lkadm5srv -lkdb5 -lgssrpc ${krb5objdir}/lib${abilibdirext}/libdb.a"
   if test ! -f "${krb5srcdir}/include/k5-int.h" ; then
-    AC_MSG_ERROR("k5-int.h not found. Did you specify --with-krb5-src?")
-    exit 1
+    AC_MSG_WARN("k5-int.h not found. Did you specify --with-krb5-src?")
   fi
   K5_DB_INC_PATH="-I${krb5objdir}/include -I${krb5objdir}/include/krb5 -I${krb5srcdir}/include -I${krb5srcdir}/include/krb5"
 fi
