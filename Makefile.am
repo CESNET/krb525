@@ -18,7 +18,7 @@ libkrb525_la_SOURCES = krb525_convert.c \
 libkrb525_la_LIBADD = $(K5LIBPATH) $(KRB5LIBS)
 
 krb525_SOURCES = client.c 
-krb525_LDADD = $(top_builddir)/.libs/libkrb525.a $(K5LIBPATH) $(KRB5LIBS) $(SYSLIBS)
+krb525_LDADD = $(top_builddir)/.libs/libkrb525.a $(K5LIBPATH) $(KRB5LIBS) $(com_err_LIBS) $(SYSLIBS)
 
 krb525d_SOURCES = server.c srv_conf.c parse_conf.c capability.c
 EXTRA_krb525d_SOURCES = h_db.c k5_db.c
@@ -26,10 +26,11 @@ EXTRA_krb525d_SOURCES = h_db.c k5_db.c
 krb525d_LDADD = $(top_builddir)/.libs/libkrb525.a $(K5_DB_OBJ_FILES)  \
                 $(K5LIBPATH) $(KRB5LIBS) \
                 $(K5_DB_LIB_PATH) $(K5_DB_LIBS) \
+		$(com_err_LIBS) \
 		$(SERVERLIBS) $(SYSLIBS)
 
 krb525d_DEPENDENCIES = $(K5_DB_OBJ_FILES)
 
-INCLUDES = -I. -I$(top_srcdir) $(K5_DB_INC_PATH) $(K5INCPATH)
+INCLUDES = -I. -I$(top_srcdir) $(K5_DB_INC_PATH) $(K5INCPATH) $(com_err_CFLAGS)
 
 

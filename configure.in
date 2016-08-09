@@ -118,11 +118,11 @@ CFLAGS="${K5INCPATH} ${CFLAGS}"
 AC_TRY_COMPILE([#include <krb5.h>],
                [ char *tmp = heimdal_version; ],
                [ AC_MSG_RESULT(yes)
-      KRB5LIBS="-lkrb5 -lcom_err -lasn1 -lroken"
+      KRB5LIBS="-lkrb5 -lasn1 -lroken"
       ac_heimdal="yes"
                  AC_DEFINE(HEIMDAL) ],
                [ AC_MSG_RESULT(no) 
-      KRB5LIBS="-lkrb5 -lcrypto -lcom_err"
+      KRB5LIBS="-lkrb5"
       ac_heimdal="no"
                ]
 )
@@ -178,6 +178,8 @@ else
 fi
 fi   
 
+# Find libcom_err to provide the error_message() call (hack to bypass Krb5 error translation IMHO).
+PKG_CHECK_MODULES([com_err], [com_err])
 
 # Check to see if we need "netlibs" (specifically, libnsl and libsocket)
 #
