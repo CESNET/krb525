@@ -1,13 +1,13 @@
 Source: krb525
 Section: net
 Priority: extra
-Maintainer: Dan Kouril <kouril@ics.muni.cz>
+Maintainer: Daniel Kouril <kouril@ics.muni.cz>
 Build-Depends: debhelper (>= 5), heimdal-dev, automake, autoconf, libtool, libssl-dev
 Standards-Version: 3.7.2
-Vcs-Cvs: :ext:vcs.ics.muni.cz:/cvs/meta
+Vcs-Cvs: https://github.com/CESNET/krb525.git
 
 Package: krb525
 Architecture: any
 Depends: ${shlibs:Depends}
-Description: Preklad krb5 listku.
-  Obsahuje klienta, server i knihovnu.
+Description: Translation of Kerberos credentials
+  The package contains the server, client tools and client library.
