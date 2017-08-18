@@ -703,6 +703,8 @@ char *argv[];
 					  &creds,
 					  &target_creds);
     else
+      /* Not sure what's supposed to be done with the keytab,
+         initial creds were already obtained above. */
       retval = krb525_convert_with_keytab(context,
 					  krb525_hosts,
 					  krb525_port,

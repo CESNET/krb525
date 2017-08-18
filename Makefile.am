@@ -4,7 +4,7 @@ AUTOMAKE_OPTIONS = foreign
 
 ACLOCAL = @ACLOCAL@ -I ./cf
 
-bin_PROGRAMS = krb525
+bin_PROGRAMS = krb525 krb525_renew
 include_HEADERS = krb525.h krb525_convert.h
 lib_LTLIBRARIES = libkrb525.la 
 man_MANS = krb525.1 krb525.conf.5
@@ -18,6 +18,9 @@ libkrb525_la_LIBADD = $(K5LIBPATH) $(KRB5LIBS)
 
 krb525_SOURCES = client.c 
 krb525_LDADD = $(top_builddir)/.libs/libkrb525.a $(K5LIBPATH) $(KRB5LIBS) $(com_err_LIBS) $(SYSLIBS)
+
+krb525_renew_SOURCES = renew.c base64.c
+krb525_renew_LDADD = $(krb525_LDADD)
 
 if HEIMDAL
 libexec_PROGRAMS = krb525d
