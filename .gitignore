@@ -1,3 +1,25 @@
+/.deps
+/.libs
+/autom4te.cache
+
+/config.*
+/aclocal.m4
+/configure
+/compile
+/depcomp
+/install-sh
+/krb525
+/krb525_renew
+/krb525d
+/libtool
+/ltmain.sh
+/missing
+/stamp-h1
+
+
+Makefile
+Makefile.in
+
 # Object files
 *.o
 *.ko
