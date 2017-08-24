@@ -30,7 +30,7 @@ build: build-stamp
 build-stamp:
 	dh_testdir
 	./autogen.sh
-	./configure  --with-krb5=/usr --prefix=/usr --libexecdir=/usr/lib/heimdal-servers --libdir=/usr/lib/x86_64-linux-gnu/heimdal --includedir=/usr/include/heimdal
+	LDFLAGS=-L/usr/lib/x86_64-linux-gnu/heimdal CPPFLAGS=-I/usr/include/heimdal ./configure  --with-krb5=/usr --prefix=/usr --libexecdir=/usr/lib/heimdal-servers --libdir=/usr/lib/x86_64-linux-gnu/heimdal --includedir=/usr/include/heimdal
 	$(MAKE)
 	touch $@
 
