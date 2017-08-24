@@ -1,3 +1,11 @@
+krb525 (1.4) stable; urgency=medium
+
+  * The client was made more resilient to server errors.
+  * Added a renewal tool to be used as a PBS hook.
+  * Polished build, dependencies and support of MIT and Heimdal.
+
+ -- Daniel Kouril <kouril@acamara.ics.muni.cz>  Thu, 24 Aug 2017 18:11:22 +0200
+
 krb525 (1.3) unstable; urgency=medium
 
   * Client builds and runs with MIT Kerberos libraries
