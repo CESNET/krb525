@@ -4,6 +4,7 @@
  * credentials produced are NOT encrypted.
  */
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <krb5.h>
@@ -201,7 +202,7 @@ output_creds(krb5_context context, krb5_data *creds_data)
 
 	printf("Type: Kerberos\n");
 	/* there might be multiple credentials exported, which we silently ignore */
-	printf("Valid until: %d\n", creds[0]->times.endtime);
+	printf("Valid until: %ld\n", creds[0]->times.endtime);
 	printf("%s\n", encoded);
 
 	ret = 0;
