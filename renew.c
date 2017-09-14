@@ -27,21 +27,21 @@ prepare_ccache(krb5_context context, krb5_creds *creds, krb5_ccache *cc)
 	ret = krb5_cc_new_unique(context, "MEMORY", NULL, &ccache);
 	if (ret) {
 		fprintf(stderr, "krb5_cc_new_unique() failed (%s)",
-				error_message(ret));
+				krb5_get_error_message(context, ret));
 		goto end;
 	}
 
 	ret = krb5_cc_initialize(context, ccache, creds->client);
 	if (ret) {
 		fprintf(stderr, "krb5_cc_initialize() failed (%s)",
-				error_message(ret));
+				krb5_get_error_message(context, ret));
 		goto end;
 	}
 
 	ret = krb5_cc_store_cred(context, ccache, creds);
 	if (ret) {
 		fprintf(stderr, "krb5_cc_store_cred() failed (%s)",
-				error_message(ret));
+				krb5_get_error_message(context, ret));
 		goto end;
 	}
 
@@ -86,14 +86,14 @@ get_init_creds(krb5_context context, krb5_creds *creds)
 	ret = krb5_get_init_creds_opt_alloc(context, &opt);
 	if (ret) {
 		fprintf(stderr, "krb5_get_init_creds_opt_alloc() failed (%s)\n",
-				error_message(ret));
+				krb5_get_error_message(context, ret));
 		goto end;
 	}
 
 	ret = krb5_get_init_creds_keytab(context, creds, pbs_service, keytab, 0, NULL, opt);
 	if (ret) {
 		fprintf(stderr, "krb5_get_init_creds_keytab() failed (%s)\n",
-				error_message(ret));
+				krb5_get_error_message(context, ret));
 		goto end;
 	}
 
@@ -116,7 +116,8 @@ init_auth_context(krb5_context context, krb5_auth_context *auth_context)
 
 	ret = krb5_auth_con_init(context, auth_context);
 	if (ret) {
-		fprintf(stderr, "krb5_auth_con_init() failed: %s.\n", error_message(ret));
+		fprintf(stderr, "krb5_auth_con_init() failed: %s.\n",
+				krb5_get_error_message(context, ret));
 		return ret;
 	}
 
@@ -164,7 +165,8 @@ get_fwd_creds(krb5_context context, krb5_creds *creds, krb5_data *creds_data)
 	ret = krb5_fwd_tgt_creds(context, auth_context, "localhost", creds->client,
 			NULL, ccache, 1, creds_data);
 	if (ret) {
-		fprintf(stderr, "krb5_fwd_tgt_creds() failed: %s.\n", error_message(ret));
+		fprintf(stderr, "krb5_fwd_tgt_creds() failed: %s.\n",
+				krb5_get_error_message(context, ret));
 		goto end;
 	}
 
@@ -198,7 +200,8 @@ output_creds(krb5_context context, krb5_data *creds_data)
 
 	ret = krb5_rd_cred(context, auth_context, creds_data, &creds, NULL);
 	if (ret) {
-		fprintf(stderr, "krb5_rd_cred() failed: %s.\n", error_message(ret));
+		fprintf(stderr, "krb5_rd_cred() failed: %s.\n",
+				krb5_get_error_message(context, ret));
 		goto end;
 	}
 
@@ -256,20 +259,23 @@ convert_creds(krb5_context context, krb5_creds *initiator_creds, krb5_creds *tar
 
 	ret = krb5_copy_principal(context, initiator_creds->client, &creds.client);
 	if (ret) {
-		fprintf(stderr, "krb5_copy_principal() failed: %s.\n", error_message(ret));
+		fprintf(stderr, "krb5_copy_principal() failed: %s.\n",
+				krb5_get_error_message(context, ret));
 		goto end;
 	}
 
 	ret = krb5_build_principal(context, &creds.server,
 			realm_len, realm, KRB5_TGS_NAME, realm, NULL);
 	if (ret) {
-		fprintf(stderr, "krb5_build_principal() failed: %s.\n", error_message(ret));
+		fprintf(stderr, "krb5_build_principal() failed: %s.\n",
+				krb5_get_error_message(context, ret));
 		goto end;
 	}
 
 	ret = krb5_get_credentials(context, 0, ccache, &creds, &source_creds);
 	if (ret) {
-		fprintf(stderr, "krb5_get_credentials() failed: %s.\n", error_message(ret));
+		fprintf(stderr, "krb5_get_credentials() failed: %s.\n",
+				krb5_get_error_message(context, ret));
 		goto end;
 	}
 
@@ -319,7 +325,8 @@ doit(const char *user)
 
 	ret = krb5_parse_name(context, user, &target_creds.client);
 	if (ret) {
-		fprintf(stderr, "krb5_parse_name failed: %s.\n", error_message(ret));
+		fprintf(stderr, "krb5_parse_name failed: %s.\n",
+				krb5_get_error_message(context, ret));
 		goto end;
 	}
 
@@ -334,7 +341,8 @@ doit(const char *user)
 	ret = krb5_build_principal(context, &target_creds.server,
 			strlen(realm), realm, KRB5_TGS_NAME, realm, NULL);
 	if (ret) {
-		fprintf(stderr, "krb5_build_principal() for %s failed: %s.\n", user, error_message(ret));
+		fprintf(stderr, "krb5_build_principal() for %s failed: %s.\n", user,
+				krb5_get_error_message(context, ret));
 		goto end;
 	}
 
