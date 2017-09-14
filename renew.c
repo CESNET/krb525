@@ -90,6 +90,8 @@ get_init_creds(krb5_context context, krb5_creds *creds)
 		goto end;
 	}
 
+	krb5_get_init_creds_opt_set_forwardable(opt, 1);
+
 	ret = krb5_get_init_creds_keytab(context, creds, pbs_service, keytab, 0, NULL, opt);
 	if (ret) {
 		fprintf(stderr, "krb5_get_init_creds_keytab() failed (%s)\n",
