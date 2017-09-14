@@ -134,7 +134,7 @@ init_auth_context(krb5_context context, krb5_auth_context *auth_context)
 	   timestamp is included in the forwarded message. */
 	flags &= ~(KRB5_AUTH_CONTEXT_DO_TIME);
 #ifdef HEIMDAL
-	flags &= KRB5_AUTH_CONTEXT_CLEAR_FORWARDED_CRED;
+	flags |= KRB5_AUTH_CONTEXT_CLEAR_FORWARDED_CRED;
 #endif
 	krb5_auth_con_setflags(context, *auth_context, flags);
 
