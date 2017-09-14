@@ -224,17 +224,54 @@ end:
 }
 
 static krb5_error_code
-convert_creds(krb5_context context, krb5_creds *source_creds, krb5_creds *target_creds)
+convert_creds(krb5_context context, krb5_creds *initiator_creds, krb5_creds *target_creds)
 {
 	krb5_error_code ret;
 	krb5_ccache ccache = NULL;
 	krb5_data creds_data;
+	krb5_creds creds;
+	krb5_creds *source_creds = NULL;
+	char *realm;
+	size_t realm_len;
 
 	memset(&creds_data, 0, sizeof(creds_data));
+	memset(&creds, 0, sizeof(creds));
 
-	ret = prepare_ccache(context, source_creds, &ccache);
+#ifdef HEIMDAL
+	realm = target_creds->server->realm;
+	realm_len = strlen(realm);
+#else
+	realm = target_creds->server->realm.data;
+	realm_len = target_creds->server->realm.length;
+#endif
+
+	ret = prepare_ccache(context, initiator_creds, &ccache);
 	if (ret)
 		goto end;
+
+	/* Source credentials must be from the target realm. Since we're converting
+	   our credentials (i.e. source.client == initiator), we just obtain a TGT for the final
+	   realm (to work with cross-realms) and have it converted. We use the existing ccache
+	   to store all the credentials. */
+
+	ret = krb5_copy_principal(context, initiator_creds->client, &creds.client);
+	if (ret) {
+		fprintf(stderr, "krb5_copy_principal() failed: %s.\n", error_message(ret));
+		goto end;
+	}
+
+	ret = krb5_build_principal(context, &creds.server,
+			realm_len, realm, KRB5_TGS_NAME, realm, NULL);
+	if (ret) {
+		fprintf(stderr, "krb5_build_principal() failed: %s.\n", error_message(ret));
+		goto end;
+	}
+
+	ret = krb5_get_credentials(context, 0, ccache, &creds, &source_creds);
+	if (ret) {
+		fprintf(stderr, "krb5_get_credentials() failed: %s.\n", error_message(ret));
+		goto end;
+	}
 
 	ret = krb525_get_creds_ccache(context, ccache, source_creds, target_creds);
 	if (ret) {
@@ -250,8 +287,11 @@ convert_creds(krb5_context context, krb5_creds *source_creds, krb5_creds *target
 
 end:
 	krb5_free_data_contents(context, &creds_data);
+	krb5_free_cred_contents(context, &creds);
 	if (ccache)
 		krb5_cc_destroy(context, ccache);
+	if (source_creds)
+		krb5_free_creds(context, source_creds);
 
 	return (ret);
 }
@@ -260,10 +300,11 @@ static int
 doit(const char *user)
 {
 	int ret;
-	krb5_creds source_creds, target_creds;
+	krb5_creds my_creds, target_creds;
 	krb5_context context = NULL;
+	char *realm;
 
-	memset((char *)&source_creds, 0, sizeof(source_creds));
+	memset((char *)&my_creds, 0, sizeof(my_creds));
 	memset((char *)&target_creds, 0, sizeof(target_creds));
 
 	ret = krb5_init_context(&context);
@@ -272,7 +313,7 @@ doit(const char *user)
 		return(ret);
 	}
 
-	ret = get_init_creds(context, &source_creds);
+	ret = get_init_creds(context, &my_creds);
 	if (ret)
 		goto end;
 
@@ -282,13 +323,25 @@ doit(const char *user)
 		goto end;
 	}
 
-	/* XXX */
-	krb5_copy_principal(context, source_creds.server, &target_creds.server);
+	realm = strchr(user, '@');
+	if (realm == NULL) {
+		fprintf(stderr, "The realm of the user must be specified.\n");
+		ret = -1;
+		goto end;
+	}
+	realm++;
 
-	ret = convert_creds(context, &source_creds, &target_creds);
+	ret = krb5_build_principal(context, &target_creds.server,
+			strlen(realm), realm, KRB5_TGS_NAME, realm, NULL);
+	if (ret) {
+		fprintf(stderr, "krb5_build_principal() for %s failed: %s.\n", user, error_message(ret));
+		goto end;
+	}
+
+	ret = convert_creds(context, &my_creds, &target_creds);
 
 end:
-	krb5_free_cred_contents(context, &source_creds);
+	krb5_free_cred_contents(context, &my_creds);
 	krb5_free_cred_contents(context, &target_creds);
 	krb5_free_context(context);
 
