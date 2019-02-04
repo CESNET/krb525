@@ -141,8 +141,8 @@ init_auth_context(krb5_context context, krb5_auth_context *auth_context)
 	return 0;
 }
 
-/* The credentials aren't encrypted, relying on the protection by application
-   protocol, see RFC 6448 */
+/* Creates a KRB_CRED message containing serialized credentials. The credentials
+   aren't encrypted, relying on the protection by application protocol, see RFC 6448 */
 static krb5_error_code
 get_fwd_creds(krb5_context context, krb5_creds *creds, krb5_data *creds_data)
 {
@@ -182,12 +182,19 @@ end:
 }
 
 static int
-output_creds(krb5_context context, krb5_data *creds_data)
+output_creds(krb5_context context, krb5_creds *target_creds)
 {
 	krb5_error_code ret;
 	krb5_auth_context auth_context = NULL;
 	krb5_creds **creds = NULL, **c;
 	char *encoded = NULL;
+	krb5_data _creds_data, *creds_data = &_creds_data;
+
+	memset(&_creds_data, 0, sizeof(_creds_data));
+
+	ret = get_fwd_creds(context, target_creds, creds_data);
+	if (ret)
+		goto end;
 
 	ret = init_auth_context(context, &auth_context);
 	if (ret)
@@ -215,6 +222,7 @@ output_creds(krb5_context context, krb5_data *creds_data)
 	ret = 0;
 
 end:
+	krb5_free_data_contents(context, &_creds_data);
 	if (auth_context)
 		krb5_auth_con_free(context, auth_context);
 	if (encoded)
@@ -233,13 +241,11 @@ convert_creds(krb5_context context, krb5_creds *initiator_creds, krb5_creds *tar
 {
 	krb5_error_code ret;
 	krb5_ccache ccache = NULL;
-	krb5_data creds_data;
 	krb5_creds creds;
 	krb5_creds *source_creds = NULL;
 	char *realm;
 	size_t realm_len;
 
-	memset(&creds_data, 0, sizeof(creds_data));
 	memset(&creds, 0, sizeof(creds));
 
 #ifdef HEIMDAL
@@ -287,14 +293,7 @@ convert_creds(krb5_context context, krb5_creds *initiator_creds, krb5_creds *tar
 		goto end;
 	}
 
-	ret = get_fwd_creds(context, target_creds, &creds_data);
-	if (ret)
-		goto end;
-
-	ret = output_creds(context, &creds_data);
-
 end:
-	krb5_free_data_contents(context, &creds_data);
 	krb5_free_cred_contents(context, &creds);
 	if (ccache)
 		krb5_cc_destroy(context, ccache);
@@ -349,6 +348,10 @@ doit(const char *user)
 	}
 
 	ret = convert_creds(context, &my_creds, &target_creds);
+	if (ret)
+		goto end;
+
+	ret = output_creds(context, &target_creds);
 
 end:
 	krb5_free_cred_contents(context, &my_creds);
