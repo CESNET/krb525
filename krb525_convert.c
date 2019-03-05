@@ -535,6 +535,15 @@ krb525_convert_with_ccache(krb5_context context,
 
   retval = -1;
   for (ep = krb525_endpoints; ep && *ep; ep++) {
+	  retval = get_krb525_creds_ccache(context, ccache, cname, (*ep)->hostname,
+			  &auth_data, &krb525_creds);
+	  if (retval) {
+		  update_err_msg(&tmp_err_msg, "%s" "Failed to get credentials for server %s (%s)\n",
+				  (tmp_err_msg) ? tmp_err_msg : "",
+				  (*ep)->hostname, krb525_convert_error);
+		  continue;
+	  }
+
 	  sock = connect_to_server((*ep)->hostname, (*ep)->port);
 	  if (sock < 0) {
 		  update_err_msg(&tmp_err_msg, "%s" "Failed to connect to server %s (%s)\n",
@@ -544,26 +553,15 @@ krb525_convert_with_ccache(krb5_context context,
 		  continue;
 	  }
 
-	  retval = get_krb525_creds_ccache(context, ccache, cname, (*ep)->hostname,
-			  &auth_data, &krb525_creds);
-	  if (retval) {
-		  update_err_msg(&tmp_err_msg, "%s" "Failed to get credentials for server %s (%s)\n",
-				  (tmp_err_msg) ? tmp_err_msg : "",
-				  (*ep)->hostname, krb525_convert_error);
-		  close(sock);
-		  continue;
-	  }
-
 	  retval = krb525_do_convert(context, sock, krb525_creds, in_creds, out_creds);
+	  close(sock);
 	  if (retval) {
 		  update_err_msg(&tmp_err_msg, "%s" "Failed to convert credentials with %s (%s)\n",
 				  (tmp_err_msg) ? tmp_err_msg : "",
 				  (*ep)->hostname, krb525_convert_error);
-		  close(sock);
 		  continue;
 	  }
 
-	  close(sock);
 	  retval = 0;
 	  break;
   }
