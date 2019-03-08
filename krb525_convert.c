@@ -280,7 +280,7 @@ get_krb525_endpoints(krb5_context context, short port, char *realm, krb525_endpo
 		data_realm.length = strlen(realm);
 
 		/* N.B. there's a different location of the directive! */
-		krb5_appdefault_string(context, NULL, &data_realm, "krb525_server", NULL, &s);
+		krb5_appdefault_string(context, NULL, &data_realm, "krb525_server", "", &s);
 		krb525_hosts = calloc(2, sizeof(*krb525_hosts));
 		if (krb525_hosts == NULL) {
 			retval = ENOMEM;
@@ -291,7 +291,7 @@ get_krb525_endpoints(krb5_context context, short port, char *realm, krb525_endpo
 	}
 #endif
 
-	if (!krb525_hosts || !krb525_hosts[0]) {
+	if (!krb525_hosts || !krb525_hosts[0] || !*krb525_hosts[0]) {
 		retval = KRB5_KDC_UNREACH;
 		goto end;
 	}
