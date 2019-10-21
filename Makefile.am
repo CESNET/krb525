@@ -17,7 +17,7 @@ libkrb525_la_SOURCES = krb525_convert.c \
 libkrb525_la_LIBADD = $(K5LIBPATH) $(KRB5LIBS)
 
 krb525_SOURCES = client.c 
-krb525_LDADD = $(top_builddir)/.libs/libkrb525.a $(K5LIBPATH) $(KRB5LIBS) $(com_err_LIBS) $(SYSLIBS)
+krb525_LDADD = libkrb525.la $(top_builddir)/.libs/libkrb525.a $(K5LIBPATH) $(KRB5LIBS) $(com_err_LIBS) $(SYSLIBS)
 
 krb525_renew_SOURCES = renew.c base64.c
 krb525_renew_LDADD = $(krb525_LDADD)
