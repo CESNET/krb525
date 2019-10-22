@@ -22,8 +22,6 @@
 
 char k5_db_error[1024] = "No Error";
 
-static void *handle;
-
 static HDB *db;
 
 static void
