@@ -12,6 +12,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <krb5.h>
 #include <hdb.h>
 #include <sys/fcntl.h>
@@ -19,12 +20,27 @@
 
 #include "h_db.h"
 
-
-char k5_db_error[255] = "No Error";
+char k5_db_error[1024] = "No Error";
 
 static void *handle;
 
 static HDB *db;
+
+static void
+format_db_error(krb5_context context, int ret, const char *format, ...)
+{
+    va_list ap;
+    const char *msg = krb5_get_error_message(context, ret);
+
+    va_start(ap, format);
+    vsnprintf(k5_db_error, sizeof(k5_db_error), format, ap);
+    va_end(ap);
+
+    strncat(k5_db_error, ": ", sizeof(k5_db_error) - strlen(k5_db_error) - 1);
+    strncat(k5_db_error, msg, sizeof(k5_db_error) - strlen(k5_db_error) - 1);
+
+    return;
+}
 
 int
 hdb_init(krb5_context context, const char *kdc_conf_file)
@@ -35,7 +51,7 @@ hdb_init(krb5_context context, const char *kdc_conf_file)
   
   ret = krb5_config_parse_file(context, kdc_conf_file, &cf);
   if (ret) {
-    sprintf(k5_db_error, "hdb_init: krb5_config_parse_file: %s", error_message(ret));
+    format_db_error(context, ret, "hdb_init: krb5_config_parse_file() failed");
     return(-1);
   };
 
@@ -47,13 +63,13 @@ hdb_init(krb5_context context, const char *kdc_conf_file)
 
   ret = hdb_create(context, &db, database);
   if (ret) {
-    sprintf(k5_db_error, "hdb_init: hdb_create: %s", error_message(ret));
+    format_db_error(context, ret, "hdb_init: hdb_create() failed");
     return(-1);
   };
 
   ret = hdb_set_master_keyfile(context, db, keyfile);
   if (ret) {
-    sprintf(k5_db_error, "hdb_init: hdb_set_master_key: %s", error_message(ret));
+    format_db_error(context, ret, "hdb_init: hdb_set_master_key() failed");
     return(-1);
   };
 }
@@ -77,7 +93,7 @@ hdb_get_key(krb5_context context,
 
   *key = (krb5_keyblock *) malloc(sizeof(krb5_keyblock));
   if (*key == NULL) {
-    sprintf(k5_db_error, "malloc failed");
+    snprintf(k5_db_error, sizeof(k5_db_error), "malloc failed in hdb_get_key()");
     return -1;
   }
 
@@ -86,7 +102,7 @@ hdb_get_key(krb5_context context,
 
   ret = hdb_enctype2key(context, &entry.entry, NULL, ktype, &k);
   if (ret) {
-    sprintf(k5_db_error, "hdb_enctype2key: %s", error_message(ret));
+    format_db_error(context, ret, "hdb_enctype2key() failed");
     return(ret);
   };
 
@@ -106,17 +122,17 @@ hdb_get_entry(krb5_context context,
   if (db) {
     ret = db->hdb_open(context, db, O_RDONLY, 0);
     if (ret) {
-      sprintf(k5_db_error, "error %s opening database", error_message(ret));
+      format_db_error(context, ret, "Failed to open database");
       return(ret);
     };
     ret = db->hdb_fetch_kvno(context, db, princ, HDB_F_DECRYPT, 0, entry);
     db->hdb_close(context, db);
     if (ret) {
-      sprintf(k5_db_error, "error %s fetching principal", error_message(ret));
+      format_db_error(context, ret, "Error fetching principal");
       return(ret);
     };
   } else {
-    sprintf(k5_db_error, "database not initialized");
+    snprintf(k5_db_error, sizeof(k5_db_error), "database not initialized");
     return(-1);
   };
   return(0);
