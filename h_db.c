@@ -72,6 +72,8 @@ hdb_init(krb5_context context, const char *kdc_conf_file)
     format_db_error(context, ret, "hdb_init: hdb_set_master_key() failed");
     return(-1);
   };
+
+  return 0;
 }
 
 void hdb_close(krb5_context context) {
