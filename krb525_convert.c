@@ -121,14 +121,14 @@ get_krb525_creds_ccache(krb5_context context,
    */
   if (cname == NULL) {
     /* Get cache owner */
-    if(retval=krb5_cc_get_principal(context, ccache, &in_creds.client)) {
+    if((retval=krb5_cc_get_principal(context, ccache, &in_creds.client))) {
       sprintf(krb525_convert_error, "%s while getting cache owner",
 	      error_message(retval));
       return(retval);
     }
   } else {
     /* Parse name */
-    if (retval = krb5_parse_name (context, cname, &in_creds.client)) {
+    if ((retval = krb5_parse_name (context, cname, &in_creds.client))) {
       sprintf(krb525_convert_error, "%s when parsing name %s", 
 	      error_message(retval), cname);
       return(retval);
@@ -139,8 +139,8 @@ get_krb525_creds_ccache(krb5_context context,
    * Parse service name to authenticate with. (Default is
    * KRB525_SERVICE/<hostname>)
    */
-  if (retval = krb5_sname_to_principal(context, krb525_host, KRB525_SERVICE,
-				       KRB5_NT_SRV_HST, &in_creds.server)) {
+  if ((retval = krb5_sname_to_principal(context, krb525_host, KRB525_SERVICE,
+				       KRB5_NT_SRV_HST, &in_creds.server))) {
     sprintf(krb525_convert_error, "%s while creating server name for %s/%s",
 	    error_message(retval), KRB525_SERVICE, krb525_host);
     return(retval);
@@ -363,15 +363,15 @@ krb525_do_convert(krb5_context context,
   }
   
   /* Prepare to encrypt */
-  if (retval = setup_auth_context(context, auth_context, &lsin, &rsin,
-				  "_525")) {
+  if ((retval = setup_auth_context(context, auth_context, &lsin, &rsin,
+				  "_525"))) {
     sprintf(krb525_convert_error, "%s while setting authentication context\n",
 	    auth_con_error);
         return(retval);
   }
   
   /* Send target client name */
-  if(retval=krb5_unparse_name(context, out_creds->client, (char **)&message.data)) {
+  if((retval=krb5_unparse_name(context, out_creds->client, (char **)&message.data))) {
     sprintf(krb525_convert_error, "%s while parsing target client\n",
 	    error_message(retval));
     return(retval);
@@ -386,7 +386,7 @@ krb525_do_convert(krb5_context context,
   }
 
   /* Send target server name */
-  if(retval=krb5_unparse_name(context, out_creds->server, (char **)&message.data)) {
+  if((retval=krb5_unparse_name(context, out_creds->server, (char **)&message.data))) {
     sprintf(krb525_convert_error, "%s while parsing target server\n",
 	    error_message(retval));
     return(retval);
@@ -404,7 +404,7 @@ krb525_do_convert(krb5_context context,
   message.data = in_creds->ticket.data;
   message.length = in_creds->ticket.length;
   
-  if (retval = send_encrypt(context, auth_context, sock, message)) {
+  if ((retval = send_encrypt(context, auth_context, sock, message))) {
     sprintf(krb525_convert_error, "%s while sending ticket\n",
 	    netio_error);
     return(retval);

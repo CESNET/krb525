@@ -51,7 +51,7 @@ static int validate_request_with_kt(krb5_context,
 static char validate_error[256];
 
 
-void
+int
 main(argc, argv)
     int argc;
     char *argv[];
@@ -113,7 +113,7 @@ main(argc, argv)
     memset(&request, 0, sizeof(request));
 
     /* Get our name, removing preceding path */
-    if (progname = strrchr(argv[0], '/'))
+    if ((progname = strrchr(argv[0], '/')))
 	progname++;
     else
 	progname = argv[0];
@@ -261,8 +261,8 @@ main(argc, argv)
 #endif
 
     /* Get our service principal */
-    if (retval = krb5_sname_to_principal(context, NULL, service, 
-					 KRB5_NT_SRV_HST, &my_princ)) {
+    if ((retval = krb5_sname_to_principal(context, NULL, service,
+					 KRB5_NT_SRV_HST, &my_princ))) {
 	syslog(LOG_ERR, "while generating service name (%s): %s",
 	       service, error_message(retval));
 	exit(1);
@@ -286,7 +286,7 @@ main(argc, argv)
 	sock = make_accepting_sock(port);
 
 	if (sock == -1) {
-	    syslog(LOG_ERR, netio_error);
+        syslog(LOG_ERR, "Failed to create accepting socket: %s", netio_error);
 	    exit(1);
 	}
 
@@ -317,11 +317,11 @@ main(argc, argv)
 	exit(1);
     }
 
-    if (retval = krb5_recvauth(context, &auth_context, (krb5_pointer)&sock,
+    if ((retval = krb5_recvauth(context, &auth_context, (krb5_pointer)&sock,
 			       KRB525_VERSION, my_princ, 
 			       0,	/* no flags */
 			       keytab,	/* default keytab is NULL */
-			       &recvauth_ticket)) {
+			       &recvauth_ticket))) {
 	syslog(LOG_ERR, "recvauth failed--%s", error_message(retval));
 	exit(1);
     }
@@ -329,9 +329,9 @@ main(argc, argv)
     request.auth_data     = recvauth_ticket->ticket.authorization_data;
 
     /* Prepare to encrypt/decrypt */
-    if (retval = setup_auth_context(context, auth_context, &lsin, &rsin,
-				    progname)) {
-	com_err(progname, retval, auth_con_error);
+    if ((retval = setup_auth_context(context, auth_context, &lsin, &rsin,
+				    progname))) {
+	com_err(progname, retval, "while preparing auth context (%s)", auth_con_error);
 	exit(1);
     }
  
@@ -359,9 +359,9 @@ main(argc, argv)
 
     /* Get sender name */
 #ifdef HEIMDAL
-    if (retval = krb5_unparse_name(context,
+    if ((retval = krb5_unparse_name(context,
 				   recvauth_ticket->client,
-				   &request.sender_name)){
+				   &request.sender_name))){
 #else
     if (retval = krb5_unparse_name(context,
 				   recvauth_ticket->enc_part2->client,
@@ -381,9 +381,9 @@ main(argc, argv)
 	   inet_ntoa(rsin.sin_addr));
 
     /* Parse target principal names */
-    if (retval = krb5_parse_name(context,
+    if ((retval = krb5_parse_name(context,
 				 request.target_cname,
-				 &request.target_client)) {
+				 &request.target_client))) {
 	syslog(LOG_ERR, "parse of target client \"%s\" failed: %s",
 	       request.target_cname,
 	       error_message(retval));
@@ -391,9 +391,9 @@ main(argc, argv)
 	response_status = STATUS_ERROR;
 	goto respond;
     }
-    if (retval = krb5_parse_name(context,
+    if ((retval = krb5_parse_name(context,
 				 request.target_sname,
-				 &request.target_server)) {
+				 &request.target_server))) {
 	syslog(LOG_ERR, "parse of target server \"%s\" failed: %s",
 	       request.target_sname,
 	       error_message(retval));
@@ -417,10 +417,10 @@ main(argc, argv)
           goto respond;
       }
 
-      if(retval = _krb5_principalname2krb5_principal(context,
+      if((retval = _krb5_principalname2krb5_principal(context,
 					       &(request.ticket->server),
 					       request.tkt.sname,
-					       request.tkt.realm)) {
+					       request.tkt.realm))) {
  	syslog(LOG_ERR, "Error parsing ticket server principal: %s",
 	       error_message(retval));
 	sprintf(errbuf, "Server error\n");
@@ -441,9 +441,9 @@ main(argc, argv)
     }
 #endif
 
-    if (retval = krb5_unparse_name(context,
+    if ((retval = krb5_unparse_name(context,
 				   request.ticket->server,
-				   &request.sname)) {
+				   &request.sname))) {
 	syslog(LOG_ERR, "Error unparsing ticket server: %s",
 	       error_message(retval));
 	sprintf(errbuf, "Server error\n");
@@ -464,10 +464,10 @@ main(argc, argv)
     if (use_k5_db) {
 	/* Get keys from db */
 #ifdef HEIMDAL
-	if (retval = hdb_get_key(context,
+	if ((retval = hdb_get_key(context,
 				 request.ticket->server, 
 				 &server_key,
-				 request.tkt.enc_part.etype)) {
+				 request.tkt.enc_part.etype))) {
 #else
 	if (retval = k5_db_get_key(context,
 				   request.ticket->server, 
@@ -483,10 +483,10 @@ main(argc, argv)
 
 	/* XXX Use same key type here? */
 #ifdef HEIMDAL
-	if (retval = hdb_get_key(context,
+	if ((retval = hdb_get_key(context,
 				 request.target_server, 
 				 &target_server_key,
-				 request.tkt.enc_part.etype)) {
+				 request.tkt.enc_part.etype))) {
 #else
 	if (retval = k5_db_get_key(context,
 				   request.target_server, 
@@ -504,12 +504,12 @@ main(argc, argv)
     {
 	/* Get keys from keytab */
 #ifdef HEIMDAL
- 	if (retval = krb5_kt_read_service_key(context,
+	if ((retval = krb5_kt_read_service_key(context,
 					      keytab_name,
 					      request.ticket->server, 
 					      0, /* Any VNO */
 					      request.tkt.enc_part.etype,
-					      &server_key)) {
+					      &server_key))) {
 #else
  	if (retval = krb5_kt_read_service_key(context,
 					      keytab_name,
@@ -527,19 +527,19 @@ main(argc, argv)
 
 
 #ifdef HEIMDAL
-	if (retval = krb5_kt_read_service_key(context,
+	if ((retval = krb5_kt_read_service_key(context,
 					      keytab_name,
 					      request.target_server, 
 					      0, /* Any VNO */
 					      request.tkt.enc_part.etype,
-					      &target_server_key)) {
+					      &target_server_key))) {
 #else
-	if (retval = krb5_kt_read_service_key(context,
+	if ((retval = krb5_kt_read_service_key(context,
 					      keytab_name,
 					      request.target_server, 
 					      0, /* Any VNO */
 					      request.ticket->enc_part.enctype,
-					      &target_server_key)) {
+					      &target_server_key))) {
 #endif
 	    syslog(LOG_ERR, "Error get service key for %s from keytab: %s",
 		   request.sname, error_message(retval));
@@ -557,11 +557,11 @@ main(argc, argv)
 #ifdef HEIMDAL
     /* Decrypt */
     {
-      if(retval = krb5_decrypt_ticket(context, 
+      if((retval = krb5_decrypt_ticket(context,
 				      &request.tkt, 
 				      server_key, 
 				      &(request.ticket->ticket),
-				      0)) {
+				      0))) {
 	syslog(LOG_ERR, "Error decrypting ticket: %s",
 	       krb5_get_error_message(context, retval));
 	sprintf(errbuf, "Server error\n");
@@ -570,10 +570,10 @@ main(argc, argv)
       }
 
       /* Get client name */
-      if (retval = _krb5_principalname2krb5_principal(context,
+      if ((retval = _krb5_principalname2krb5_principal(context,
 						&(request.ticket->client),
 						request.ticket->ticket.cname,
-						request.ticket->ticket.crealm)) {
+						request.ticket->ticket.crealm))) {
 	syslog(LOG_ERR, "Error parsing ticket client: %s",
 	       error_message(retval));
 	sprintf(errbuf, "Server error\n");
@@ -593,7 +593,7 @@ main(argc, argv)
 #endif
 
     /* Parse client name */
-    if(retval = krb5_unparse_name(context, request.ticket->client, &request.cname)) {
+    if((retval = krb5_unparse_name(context, request.ticket->client, &request.cname))) {
       syslog(LOG_ERR, "Error unparsing ticket client: %s",
 	     error_message(retval));
       sprintf(errbuf, "Server error\n");
@@ -615,7 +615,7 @@ main(argc, argv)
      */
     if (check_conf(&request)) {
 	sprintf(errbuf, "Permission denied\n");
-	syslog(LOG_ERR, srv_conf_error);
+	syslog(LOG_ERR, "Permission denied: %s", srv_conf_error);
 	response_status = STATUS_ERROR;
 	goto respond;
     }

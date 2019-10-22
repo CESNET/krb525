@@ -74,7 +74,6 @@ pconf_entry *
 parse_conf(char *filename, char *delim)
 {
     pconf_context pcontext;
-    char *string;
     pconf_entry *entry;
     int error;
 
@@ -342,7 +341,7 @@ read_list(pconf_context *pcontext,
 
     list[0] = NULL;
     
-    while (string = get_token(pcontext)) {
+    while ((string = get_token(pcontext))) {
 	/* ; is always a legal terminator */
 	if (strcmp(string, ";") == 0)
 	    break;

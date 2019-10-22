@@ -53,8 +53,8 @@ send_encrypt(krb5_context context,
 
 
     /* Encrypt message */
-    if (retval = krb5_mk_priv(context, auth_context, &message, &emessage,
-			       NULL)) {
+    if ((retval = krb5_mk_priv(context, auth_context, &message, &emessage,
+			       NULL))) {
 	sprintf(netio_error, "%s while encrypting message",
 		error_message(retval));
 	return retval;
@@ -76,7 +76,9 @@ send_msg(krb5_context context,
 	 krb5_data message)
 {
     krb5_error_code	retval;
+#ifndef HEIMDAL
     uint32_t	len;
+#endif
 
 
 #ifdef HEIMDAL
@@ -125,8 +127,8 @@ read_encrypt(krb5_context context,
     }
 
     /* Decrypt the message */
-    if (retval = krb5_rd_priv(context, auth_context, &emessage, message,
-			      NULL)) {
+    if ((retval = krb5_rd_priv(context, auth_context, &emessage, message,
+			      NULL))) {
 	sprintf(netio_error, "%s decrypting target from client",
 		error_message(retval));
 	return -1;
@@ -137,13 +139,15 @@ read_encrypt(krb5_context context,
 }
 
 
-
+int
 read_msg(krb5_context context,
 	 int fd,
 	 krb5_data *message)
 {
     krb5_error_code	retval;
+#ifndef HEIMDAL
     uint8_t buf[4];
+#endif
 
     
 #ifdef HEIMDAL
