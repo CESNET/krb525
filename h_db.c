@@ -91,6 +91,8 @@ hdb_get_key(krb5_context context,
   krb5_error_code ret;
   Key  *k;
 
+  memset(&entry, 0, sizeof(entry));
+
   *key = (krb5_keyblock *) malloc(sizeof(krb5_keyblock));
   if (*key == NULL) {
     snprintf(k5_db_error, sizeof(k5_db_error), "malloc failed in hdb_get_key()");
