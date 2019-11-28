@@ -8,8 +8,11 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <string.h>
+#include <errno.h>
 #include <krb5.h>
+#include <parse_time.h>
 
 #include "krb525_convert.h"
 #include "base64.h"
@@ -56,7 +59,7 @@ end:
 }
 
 static krb5_error_code
-get_init_creds(krb5_context context, krb5_creds *creds)
+get_init_creds(krb5_context context, int lifetime, krb5_creds *creds)
 {
 	krb5_error_code ret;
 	krb5_get_init_creds_opt *opt = NULL;
@@ -91,6 +94,7 @@ get_init_creds(krb5_context context, krb5_creds *creds)
 	}
 
 	krb5_get_init_creds_opt_set_forwardable(opt, 1);
+	krb5_get_init_creds_opt_set_tkt_life(opt, lifetime);
 
 	ret = krb5_get_init_creds_keytab(context, creds, pbs_service, keytab, 0, NULL, opt);
 	if (ret) {
@@ -188,9 +192,10 @@ output_creds(krb5_context context, krb5_creds *target_creds)
 	krb5_auth_context auth_context = NULL;
 	krb5_creds **creds = NULL, **c;
 	char *encoded = NULL;
-	krb5_data _creds_data, *creds_data = &_creds_data;
+	krb5_data *creds_data;
 
-	memset(&_creds_data, 0, sizeof(_creds_data));
+	creds_data = calloc(1,sizeof(*creds_data));
+	if (!creds_data) return ENOMEM;
 
 	ret = get_fwd_creds(context, target_creds, creds_data);
 	if (ret)
@@ -222,7 +227,7 @@ output_creds(krb5_context context, krb5_creds *target_creds)
 	ret = 0;
 
 end:
-	krb5_free_data_contents(context, &_creds_data);
+	krb5_free_data(context, creds_data);
 	if (auth_context)
 		krb5_auth_con_free(context, auth_context);
 	if (encoded)
@@ -304,7 +309,7 @@ end:
 }
 
 static int
-doit(const char *user)
+doit(const char *user, int lifetime)
 {
 	int ret;
 	krb5_creds my_creds, target_creds;
@@ -320,7 +325,7 @@ doit(const char *user)
 		return(ret);
 	}
 
-	ret = get_init_creds(context, &my_creds);
+	ret = get_init_creds(context, lifetime, &my_creds);
 	if (ret)
 		goto end;
 
@@ -366,18 +371,39 @@ main(int argc, char *argv[])
 {
 	char *progname;
 	int ret;
+	int ch;
+	int lifetime = 24*3600;
 
 	if ((progname = strrchr(argv[0], '/')))
 		progname++;
 	else
 		progname = argv[0];
 
-	if (argc != 2) {
-		fprintf(stderr, "Usage: %s principal_name\n", progname);
+	 opterr = 0;
+	
+	 while ((ch = getopt(argc, argv, "l:")) != EOF)
+		switch (ch) {
+		case 'l':
+		    lifetime = parse_time(optarg, "s");
+		    if (lifetime < 0) {
+			fprintf(stderr, "error: unparsable lifetime\n");
+			exit(1);
+
+		    }
+		    break;
+	       
+		case '?':
+		default:
+		    opterr++;
+		    break;
+		}
+
+	if (opterr || optind >= argc) {
+		fprintf(stderr, "Usage: %s [ -l lifetime ] principal_name\n", progname);
 		exit(1);
 	}
 
-	ret = doit(argv[1]);
+	ret = doit(argv[optind], lifetime);
 
 	if (ret != 0)
 		ret = 1;
