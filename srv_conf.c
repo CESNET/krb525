@@ -407,7 +407,7 @@ find_princ_in_regex_list(krb5_context kcontext,
     char		*princ_realm;
 
 
-    if (found_entry = find_string_in_regex_list(entry, pname))
+    if ((found_entry = find_string_in_regex_list(entry, pname)))
 	return found_entry;
 
     if (krb5_get_default_realm(kcontext, &local_realm))
@@ -507,7 +507,7 @@ find_princ_in_regex_values(krb5_context kcontext,
     char		*princ_realm;
 
 
-    if (found_string = find_string_in_regex_values(entry, pname))
+    if ((found_string = find_string_in_regex_values(entry, pname)))
 	return found_string;
 
     if (krb5_get_default_realm(kcontext, &local_realm))

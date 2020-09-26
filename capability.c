@@ -1,9 +1,5 @@
 /* 	$Id: capability.c,v 1.4 2015/09/11 18:12:59 kouril Exp $	 */
 
-#ifndef lint
-static char vcid[] = "$Id: capability.c,v 1.4 2015/09/11 18:12:59 kouril Exp $";
-#endif /* lint */
-
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
