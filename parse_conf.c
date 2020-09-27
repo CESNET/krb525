@@ -270,8 +270,26 @@ parse_entry(pconf_context *pcontext,
     if (string == NULL)	/* EOF */
 	goto done;
 
-    if (strcmp(string, ";") == 0)
-	goto done;
+    if (strcmp(string, ";") == 0) {
+		if (entry->strings && *entry->strings && strcmp(*entry->strings, "include") == 0) {
+			pconf_entry *included;
+
+			if (entry->strings+1 == NULL || *(entry->strings+1) == NULL) {
+				sprintf(pconf_error, "Missing file name on line %d of file %s",
+						pcontext->linenum, pcontext->filename);
+				goto error_return;
+			}
+
+			included = parse_conf(*(entry->strings+1), NULL);
+			free_pconf_enteries(entry);
+			entry = NULL;
+			if (included == NULL)
+				goto error_return;
+
+			entry = included;
+		}
+		goto done;
+    }
 
     if (strcmp(string, "}") == 0)
 	goto done;	/* Must be an empty list */

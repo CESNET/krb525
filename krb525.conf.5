@@ -53,6 +53,16 @@ character (
 ) denotes a comment and causes all further text up to a carriage
 return to be ignored.
 .PP
+Other configuration files may be loaded using the
+.I include
+directive, which can be placed anywhere in the file:
+.nf
+.in +1i
+include <file.conf> ;
+.in -1i
+.fi
+
+.PP
 The following items are currently used in the 
 .I krb525.conf
 file:
