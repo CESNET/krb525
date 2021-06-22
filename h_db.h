@@ -16,9 +16,9 @@
 
 typedef hdb_entry_ex krb5_db_entry;
 
-extern int hdb_init(krb5_context, const char *);
+extern int hdb_init_info(krb5_context, const char *);
 
-extern void hdb_close(krb5_context);
+extern void hdb_close_info(krb5_context);
 
 krb5_error_code hdb_get_key(krb5_context,
 			    krb5_principal,

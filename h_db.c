@@ -22,7 +22,7 @@
 
 char k5_db_error[1024] = "No Error";
 
-static HDB *db;
+static struct hdb_dbinfo *db_info;
 
 static void
 format_db_error(krb5_context context, int ret, const char *format, ...)
@@ -41,44 +41,54 @@ format_db_error(krb5_context context, int ret, const char *format, ...)
 }
 
 int
-hdb_init(krb5_context context, const char *kdc_conf_file)
+hdb_init_info(krb5_context context, const char *kdc_conf_file)
 {
-  int ret;
-  const char *database = NULL, *keyfile = NULL;
-  krb5_config_section *cf = NULL;
-  
-  ret = krb5_config_parse_file(context, kdc_conf_file, &cf);
+  krb5_error_code ret;
+  char **filelist = NULL;
+  krb5_context kdc_context = NULL;
+
+  ret = krb5_copy_context(context, &kdc_context);
   if (ret) {
-    format_db_error(context, ret, "hdb_init: krb5_config_parse_file() failed");
-    return(-1);
-  };
+    format_db_error(context, ret, "hdb_init: krb5_copy_context() failed");
+    return -1;
+  }
 
-  database = krb5_config_get_string (context, cf, "krb525", "database", NULL);
-  if(database == NULL) database = "/var/heimdal/heimdal.db";
-
-  keyfile = krb5_config_get_string (context, cf, "krb525", "key-file", NULL);
-  if(keyfile == NULL) keyfile = "/var/heimdal/m-key";
-
-  ret = hdb_create(context, &db, database);
+  krb5_prepend_config_files(kdc_conf_file, NULL, &filelist);
   if (ret) {
-    format_db_error(context, ret, "hdb_init: hdb_create() failed");
-    return(-1);
-  };
+    format_db_error(context, ret, "hdb_init: krb5_prepend_config_files() failed");
+    goto end;
+  }
 
-  ret = hdb_set_master_keyfile(context, db, keyfile);
+  ret = krb5_set_config_files(kdc_context, filelist);
   if (ret) {
-    format_db_error(context, ret, "hdb_init: hdb_set_master_key() failed");
-    return(-1);
-  };
+    format_db_error(context, ret, "hdb_init: krb5_set_config_files() fauled");
+    goto end;
+  }
 
-  return 0;
+  ret = hdb_get_dbinfo(kdc_context, &db_info);
+  if (ret) {
+    format_db_error(context, ret, "hdb_init: hdb_get_dbinfo() failed");
+    goto end;
+  }
+
+end:
+  if (ret) {
+    if (db_info)
+      hdb_free_dbinfo(kdc_context, &db_info);
+      db_info = NULL;
+  }
+
+  if (filelist)
+    krb5_free_config_files(filelist);
+  krb5_free_context(kdc_context);
+
+  return (ret == 0) ? 0 : -1;
 }
 
-void hdb_close(krb5_context context) {
-#if 0
-  if(db) 
-    db->close(context, db);
-#endif
+void
+hdb_close_info(krb5_context context) {
+  /* the context is different from what was used for the init but it should be harmless */
+  hdb_free_dbinfo(context, &db_info);
 }
 
 krb5_error_code
@@ -114,29 +124,85 @@ hdb_get_key(krb5_context context,
   return(0);
 }
 
+static krb5_error_code
+create_db_handle(krb5_context context, struct hdb_dbinfo *info, krb5_realm realm, struct HDB **out)
+{
+  const char *mkey;
+  krb5_error_code ret;
+  struct hdb_dbinfo *di;
+  struct HDB *db = NULL;
+
+  di = NULL;
+  while ((di = hdb_dbinfo_get_next(info, di)) != NULL) {
+    if (strcmp(hdb_dbinfo_get_realm(context, di), realm) == 0)
+      break;
+  }
+
+  if (di == NULL) {
+    snprintf(k5_db_error, sizeof(k5_db_error), "No database available for realm %s", realm);
+    return -1;
+  }
+
+  ret = hdb_create(context, &db, hdb_dbinfo_get_dbname(context, di));
+  if (ret) {
+    format_db_error(context, ret, "hdb_create() failed");
+    return -1;
+  }
+
+  mkey = hdb_dbinfo_get_mkey_file(context, di);
+  if (mkey) {
+    ret = hdb_set_master_keyfile(context, db, mkey);
+    if (ret) {
+      format_db_error(context, ret, "hdb_set_master_keyfile() failed");
+      goto end;
+    }
+  }
+
+  *out = db;
+  db = NULL;
+  ret = 0;
+
+end:
+  if (db)
+    db->hdb_destroy(context, db);
+
+  return ret;
+}
+
 krb5_error_code
 hdb_get_entry(krb5_context context,
 	      krb5_principal princ,
 	      krb5_db_entry *entry)
 {
   krb5_error_code ret;
+  struct HDB *db = NULL;
 
-  if (db) {
-    ret = db->hdb_open(context, db, O_RDONLY, 0);
-    if (ret) {
-      format_db_error(context, ret, "Failed to open database");
-      return(ret);
-    };
-    ret = db->hdb_fetch_kvno(context, db, princ, HDB_F_DECRYPT, 0, entry);
-    db->hdb_close(context, db);
-    if (ret) {
-      format_db_error(context, ret, "Error fetching principal");
-      return(ret);
-    };
-  } else {
-    snprintf(k5_db_error, sizeof(k5_db_error), "database not initialized");
-    return(-1);
+  if (db_info == NULL) {
+    snprintf(k5_db_error, sizeof(k5_db_error), "Database info not initialized");
+    return -1;
+  }
+
+  ret = create_db_handle(context, db_info, princ->realm, &db);
+  if (ret)
+    return ret;
+
+  ret = db->hdb_open(context, db, O_RDONLY, 0);
+  if (ret) {
+    format_db_error(context, ret, "Failed to open database");
+    goto end;
   };
-  return(0);
-}
 
+  ret = db->hdb_fetch_kvno(context, db, princ, HDB_F_DECRYPT, 0, entry);
+  db->hdb_close(context, db);
+  if (ret) {
+    format_db_error(context, ret, "Error fetching principal");
+    goto end;
+  };
+
+  ret = 0;
+
+end:
+  db->hdb_destroy(context, db);
+
+  return ret;
+}

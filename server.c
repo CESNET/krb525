@@ -247,8 +247,8 @@ main(argc, argv)
 
 #ifdef K5_DB_CODE
 #ifdef HEIMDAL
-    if ((retval = hdb_init(context, kdc_conf_file)) == -1) {
-	syslog(LOG_ERR, "%s while initializing Heimdal DB", k5_db_error);
+    if ((retval = hdb_init_info(context, kdc_conf_file)) == -1) {
+	syslog(LOG_ERR, "%s while initializing Heimdal DB info", k5_db_error);
 	exit(1);
     }
 #else
@@ -776,7 +776,7 @@ done:
     free_conf();
 #ifdef K5_DB_CODE
 #ifdef HEIMDAL
-    hdb_close(context);
+    hdb_close_info(context);
 #else
     k5_db_close(context);
 #endif
