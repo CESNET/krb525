@@ -102,7 +102,7 @@ main(argc, argv)
     char *kdc_conf_file = "/kdc.conf";
 #endif
 
-    krb5_data ticket_data, *converted_ticket;
+    krb5_data ticket_data, *converted_ticket = NULL;
 
     krb5_keyblock *server_key, *target_server_key;
 
@@ -272,7 +272,8 @@ main(argc, argv)
        krb5_realm my_realm;
 
        krb5_get_default_realm(context,&my_realm);
-       krb5_princ_set_realm(context,my_princ,&my_realm);
+       krb5_principal_set_realm(context, my_princ, my_realm);
+       krb5_xfree(my_realm);
     }
           
     /*
