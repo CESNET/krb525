@@ -1,3 +1,11 @@
+krb525 (1.6) stable; urgency=medium
+
+  * Support for multi-realm setup to the server.
+  * Support for the 'include' configuration directive
+  * Polished build
+
+ -- Daniel Kouril <kouril@ics.muni.cz>  Tue, 22 Jun 2021 17:16:10 +0200
+
 krb525 (1.4) stable; urgency=medium
 
   * The client was made more resilient to server errors.
