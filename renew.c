@@ -192,10 +192,9 @@ output_creds(krb5_context context, krb5_creds *target_creds)
 	krb5_auth_context auth_context = NULL;
 	krb5_creds **creds = NULL, **c;
 	char *encoded = NULL;
-	krb5_data *creds_data;
+	krb5_data _creds_data, *creds_data = &_creds_data;
 
-	creds_data = calloc(1,sizeof(*creds_data));
-	if (!creds_data) return ENOMEM;
+	memset(&_creds_data, 0, sizeof(_creds_data));
 
 	ret = get_fwd_creds(context, target_creds, creds_data);
 	if (ret)
@@ -227,7 +226,7 @@ output_creds(krb5_context context, krb5_creds *target_creds)
 	ret = 0;
 
 end:
-	krb5_free_data(context, creds_data);
+	krb5_free_data_contents(context, &_creds_data);
 	if (auth_context)
 		krb5_auth_con_free(context, auth_context);
 	if (encoded)
