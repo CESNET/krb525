@@ -1,3 +1,9 @@
+krb525 (1.7) stable; urgency=medium
+
+  * Added a lifetime parameter to krb525_renew
+
+ -- Daniel Kouril <kouril@ics.muni.cz>  Tue, 11 Jan 2022 13:21:16 +0100
+
 krb525 (1.6) stable; urgency=medium
 
   * Support for multi-realm setup to the server.
