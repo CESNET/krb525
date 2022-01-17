@@ -26,35 +26,29 @@ static void *handle;
  */
 
 int
-k5_db_init(char * whoami,
-	   krb5_context context,
-	   kadm5_config_params *params)
+k5_db_init(char *whoami, krb5_context context, kadm5_config_params * params)
 {
-    int			 retval;
+	int retval;
 
-    /*
-     * kadm5_init() is sufficient to get keys out of the database, but in
-     * order to get whole entries (with krb5_db_get_principal()) we also
-     * need to call krb5_dbm_db_init(). *shrug*
-     */
+	/*
+	 * kadm5_init() is sufficient to get keys out of the database, but in
+	 * order to get whole entries (with krb5_db_get_principal()) we also
+	 * need to call krb5_dbm_db_init(). *shrug*
+	 */
 
-    if ((retval = kadm5_init(whoami, NULL, KADM5_ADMIN_SERVICE, params,
-			  KADM5_STRUCT_VERSION, KADM5_API_VERSION_2,
-			  &handle))) {
-	sprintf(k5_db_error, "%s initializing kadm5 library",
-		error_message(retval));
-	return -1;	
-    }
+	if ((retval = kadm5_init(whoami, NULL, KADM5_ADMIN_SERVICE, params,
+				 KADM5_STRUCT_VERSION, KADM5_API_VERSION_2, &handle))) {
+		sprintf(k5_db_error, "%s initializing kadm5 library", error_message(retval));
+		return -1;
+	}
 
-    if (retval = krb5_dbm_db_init(context)) {
-	sprintf(k5_db_error,
-		"%s initializing database routines (krb5_dbm_db_init())",
-		error_message(retval));
-	return -1;
-    }
+	if (retval = krb5_dbm_db_init(context)) {
+		sprintf(k5_db_error, "%s initializing database routines (krb5_dbm_db_init())", error_message(retval));
+		return -1;
+	}
 
-    return 0;
-} 
+	return 0;
+}
 
 
 
@@ -65,8 +59,8 @@ k5_db_init(char * whoami,
 void
 k5_db_close(krb5_context context)
 {
-    (void) krb5_dbm_db_fini(context);
-    (void) kadm5_destroy(handle);
+	(void)krb5_dbm_db_fini(context);
+	(void)kadm5_destroy(handle);
 }
 
 
@@ -75,42 +69,29 @@ k5_db_close(krb5_context context)
  */
 
 krb5_error_code
-k5_db_get_key(krb5_context context,
-	      krb5_principal princ,
-	      krb5_keyblock **key,
-	      krb5_enctype ktype)
+k5_db_get_key(krb5_context context, krb5_principal princ, krb5_keyblock ** key, krb5_enctype ktype)
 {
-    krb5_error_code		retval;
-    kadm5_principal_ent_rec	princ_ent;
+	krb5_error_code retval;
+	kadm5_principal_ent_rec princ_ent;
 
 
-    *key = (krb5_keyblock *) malloc(sizeof(krb5_keyblock));
+	*key = (krb5_keyblock *) malloc(sizeof(krb5_keyblock));
 
-    if (*key == NULL) {
-	sprintf(k5_db_error, "malloc failed");
-	return -1;
-    }
+	if (*key == NULL) {
+		sprintf(k5_db_error, "malloc failed");
+		return -1;
+	}
 
-    if (retval = kadm5_get_principal(handle, princ,
-				      &princ_ent, KADM5_KEY_DATA)) {
-	sprintf(k5_db_error, "%s get principal information",
-		error_message(retval));
+	if (retval = kadm5_get_principal(handle, princ, &princ_ent, KADM5_KEY_DATA)) {
+		sprintf(k5_db_error, "%s get principal information", error_message(retval));
+		return retval;
+	}
+
+	if (retval = kadm5_decrypt_key(handle, &princ_ent, ktype, -1, -1, *key, NULL, NULL))
+		sprintf(k5_db_error, "%s decrypting key", error_message(retval));
+
+	kadm5_free_principal_ent(handle, &princ_ent);
 	return retval;
-    }
-
-    if (retval = kadm5_decrypt_key(handle,
-				   &princ_ent,
-				   ktype,
-				   -1,
-				   -1,
-				   *key,
-				   NULL,
-				   NULL))
-	sprintf(k5_db_error, "%s decrypting key",
-		error_message(retval));
-
-    kadm5_free_principal_ent(handle, &princ_ent);
-    return retval;
 }
 
 
@@ -120,36 +101,27 @@ k5_db_get_key(krb5_context context,
  * From kdc/do_as_req.c:process_as_req()
  */
 krb5_error_code
-k5_db_get_entry(krb5_context context,
-		krb5_principal princ,
-		krb5_db_entry *entry)
+k5_db_get_entry(krb5_context context, krb5_principal princ, krb5_db_entry * entry)
 {
-    int			nprincs = 1;
-    krb5_boolean	more;
-    krb5_error_code	retval;
+	int nprincs = 1;
+	krb5_boolean more;
+	krb5_error_code retval;
 
-    
-    if (retval = krb5_db_get_principal(context, princ, entry, &nprincs, &more)) {
-	sprintf(k5_db_error, "%s looking up principal",
-		error_message(retval));
+
+	if (retval = krb5_db_get_principal(context, princ, entry, &nprincs, &more)) {
+		sprintf(k5_db_error, "%s looking up principal", error_message(retval));
+		return retval;
+	}
+
+	if (more) {
+		sprintf(k5_db_error, "Non-unique principal");
+		return KRB5KDC_ERR_PRINCIPAL_NOT_UNIQUE;
+	}
+
+	if (nprincs != 1) {
+		sprintf(k5_db_error, "Principal not found");
+		return KRB5KDC_ERR_C_PRINCIPAL_UNKNOWN;
+	}
+
 	return retval;
-    }
-
-    if (more) {
-	sprintf(k5_db_error, "Non-unique principal");
-	return KRB5KDC_ERR_PRINCIPAL_NOT_UNIQUE;
-    }
-
-    if (nprincs != 1) {
-	sprintf(k5_db_error, "Principal not found");
-	return KRB5KDC_ERR_C_PRINCIPAL_UNKNOWN;
-    }
-
-    return retval;
 }
-
-
-
-    
-    
-

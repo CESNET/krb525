@@ -22,36 +22,33 @@
 #define ENV_VAR_USER "PBS_K525_USER"
 
 static krb5_error_code
-prepare_ccache(krb5_context context, krb5_creds *creds, krb5_ccache *cc)
+prepare_ccache(krb5_context context, krb5_creds * creds, krb5_ccache * cc)
 {
 	krb5_error_code ret;
 	krb5_ccache ccache = NULL;
 
 	ret = krb5_cc_new_unique(context, "MEMORY", NULL, &ccache);
 	if (ret) {
-		fprintf(stderr, "krb5_cc_new_unique() failed (%s)",
-				krb5_get_error_message(context, ret));
+		fprintf(stderr, "krb5_cc_new_unique() failed (%s)", krb5_get_error_message(context, ret));
 		goto end;
 	}
 
 	ret = krb5_cc_initialize(context, ccache, creds->client);
 	if (ret) {
-		fprintf(stderr, "krb5_cc_initialize() failed (%s)",
-				krb5_get_error_message(context, ret));
+		fprintf(stderr, "krb5_cc_initialize() failed (%s)", krb5_get_error_message(context, ret));
 		goto end;
 	}
 
 	ret = krb5_cc_store_cred(context, ccache, creds);
 	if (ret) {
-		fprintf(stderr, "krb5_cc_store_cred() failed (%s)",
-				krb5_get_error_message(context, ret));
+		fprintf(stderr, "krb5_cc_store_cred() failed (%s)", krb5_get_error_message(context, ret));
 		goto end;
 	}
 
 	*cc = ccache;
 	ccache = NULL;
 
-end:
+ end:
 	if (ccache)
 		krb5_cc_destroy(context, ccache);
 
@@ -59,7 +56,7 @@ end:
 }
 
 static krb5_error_code
-get_init_creds(krb5_context context, int lifetime, krb5_creds *creds)
+get_init_creds(krb5_context context, int lifetime, krb5_creds * creds)
 {
 	krb5_error_code ret;
 	krb5_get_init_creds_opt *opt = NULL;
@@ -71,8 +68,7 @@ get_init_creds(krb5_context context, int lifetime, krb5_creds *creds)
 	else
 		ret = krb5_sname_to_principal(context, NULL, PBS_SERVICE_NAME, KRB5_NT_SRV_HST, &pbs_service);
 	if (ret) {
-		fprintf(stderr, "Preparing k525 client principal failed: %s.\n",
-				krb5_get_error_message(context, ret));
+		fprintf(stderr, "Preparing k525 client principal failed: %s.\n", krb5_get_error_message(context, ret));
 		goto end;
 	}
 
@@ -81,15 +77,13 @@ get_init_creds(krb5_context context, int lifetime, krb5_creds *creds)
 	else
 		ret = krb5_kt_default(context, &keytab);
 	if (ret) {
-		fprintf(stderr, "Cannot open keytab: %s\n",
-				krb5_get_error_message(context, ret));
+		fprintf(stderr, "Cannot open keytab: %s\n", krb5_get_error_message(context, ret));
 		goto end;
 	}
 
 	ret = krb5_get_init_creds_opt_alloc(context, &opt);
 	if (ret) {
-		fprintf(stderr, "krb5_get_init_creds_opt_alloc() failed (%s)\n",
-				krb5_get_error_message(context, ret));
+		fprintf(stderr, "krb5_get_init_creds_opt_alloc() failed (%s)\n", krb5_get_error_message(context, ret));
 		goto end;
 	}
 
@@ -98,12 +92,11 @@ get_init_creds(krb5_context context, int lifetime, krb5_creds *creds)
 
 	ret = krb5_get_init_creds_keytab(context, creds, pbs_service, keytab, 0, NULL, opt);
 	if (ret) {
-		fprintf(stderr, "krb5_get_init_creds_keytab() failed (%s)\n",
-				krb5_get_error_message(context, ret));
+		fprintf(stderr, "krb5_get_init_creds_keytab() failed (%s)\n", krb5_get_error_message(context, ret));
 		goto end;
 	}
 
-end:
+ end:
 	if (opt)
 		krb5_get_init_creds_opt_free(context, opt);
 	if (pbs_service)
@@ -115,15 +108,14 @@ end:
 }
 
 static krb5_error_code
-init_auth_context(krb5_context context, krb5_auth_context *auth_context)
+init_auth_context(krb5_context context, krb5_auth_context * auth_context)
 {
 	int32_t flags;
 	krb5_error_code ret;
 
 	ret = krb5_auth_con_init(context, auth_context);
 	if (ret) {
-		fprintf(stderr, "krb5_auth_con_init() failed: %s.\n",
-				krb5_get_error_message(context, ret));
+		fprintf(stderr, "krb5_auth_con_init() failed: %s.\n", krb5_get_error_message(context, ret));
 		return ret;
 	}
 
@@ -148,7 +140,7 @@ init_auth_context(krb5_context context, krb5_auth_context *auth_context)
 /* Creates a KRB_CRED message containing serialized credentials. The credentials
    aren't encrypted, relying on the protection by application protocol, see RFC 6448 */
 static krb5_error_code
-get_fwd_creds(krb5_context context, krb5_creds *creds, krb5_data *creds_data)
+get_fwd_creds(krb5_context context, krb5_creds * creds, krb5_data * creds_data)
 {
 	krb5_error_code ret;
 	krb5_auth_context auth_context = NULL;
@@ -167,16 +159,14 @@ get_fwd_creds(krb5_context context, krb5_creds *creds, krb5_data *creds_data)
 	 * doesn't exist. It should be noted that the krb5 configuration should set
 	 * the no-address flags for tickets (otherwise tickets couldn't be cached,
 	 * wouldn't work with multi-homed machines etc.).
-     */
-	ret = krb5_fwd_tgt_creds(context, auth_context, "localhost", creds->client,
-			NULL, ccache, 1, creds_data);
+	 */
+	ret = krb5_fwd_tgt_creds(context, auth_context, "localhost", creds->client, NULL, ccache, 1, creds_data);
 	if (ret) {
-		fprintf(stderr, "krb5_fwd_tgt_creds() failed: %s.\n",
-				krb5_get_error_message(context, ret));
+		fprintf(stderr, "krb5_fwd_tgt_creds() failed: %s.\n", krb5_get_error_message(context, ret));
 		goto end;
 	}
 
-end:
+ end:
 	if (auth_context)
 		krb5_auth_con_free(context, auth_context);
 	if (ccache)
@@ -186,7 +176,7 @@ end:
 }
 
 static int
-output_creds(krb5_context context, krb5_creds *target_creds)
+output_creds(krb5_context context, krb5_creds * target_creds)
 {
 	krb5_error_code ret;
 	krb5_auth_context auth_context = NULL;
@@ -213,8 +203,7 @@ output_creds(krb5_context context, krb5_creds *target_creds)
 
 	ret = krb5_rd_cred(context, auth_context, creds_data, &creds, NULL);
 	if (ret) {
-		fprintf(stderr, "krb5_rd_cred() failed: %s.\n",
-				krb5_get_error_message(context, ret));
+		fprintf(stderr, "krb5_rd_cred() failed: %s.\n", krb5_get_error_message(context, ret));
 		goto end;
 	}
 
@@ -225,7 +214,7 @@ output_creds(krb5_context context, krb5_creds *target_creds)
 
 	ret = 0;
 
-end:
+ end:
 	krb5_free_data_contents(context, &_creds_data);
 	if (auth_context)
 		krb5_auth_con_free(context, auth_context);
@@ -241,7 +230,7 @@ end:
 }
 
 static krb5_error_code
-convert_creds(krb5_context context, krb5_creds *initiator_creds, krb5_creds *target_creds)
+convert_creds(krb5_context context, krb5_creds * initiator_creds, krb5_creds * target_creds)
 {
 	krb5_error_code ret;
 	krb5_ccache ccache = NULL;
@@ -271,23 +260,19 @@ convert_creds(krb5_context context, krb5_creds *initiator_creds, krb5_creds *tar
 
 	ret = krb5_copy_principal(context, initiator_creds->client, &creds.client);
 	if (ret) {
-		fprintf(stderr, "krb5_copy_principal() failed: %s.\n",
-				krb5_get_error_message(context, ret));
+		fprintf(stderr, "krb5_copy_principal() failed: %s.\n", krb5_get_error_message(context, ret));
 		goto end;
 	}
 
-	ret = krb5_build_principal(context, &creds.server,
-			realm_len, realm, KRB5_TGS_NAME, realm, NULL);
+	ret = krb5_build_principal(context, &creds.server, realm_len, realm, KRB5_TGS_NAME, realm, NULL);
 	if (ret) {
-		fprintf(stderr, "krb5_build_principal() failed: %s.\n",
-				krb5_get_error_message(context, ret));
+		fprintf(stderr, "krb5_build_principal() failed: %s.\n", krb5_get_error_message(context, ret));
 		goto end;
 	}
 
 	ret = krb5_get_credentials(context, 0, ccache, &creds, &source_creds);
 	if (ret) {
-		fprintf(stderr, "krb5_get_credentials() failed: %s.\n",
-				krb5_get_error_message(context, ret));
+		fprintf(stderr, "krb5_get_credentials() failed: %s.\n", krb5_get_error_message(context, ret));
 		goto end;
 	}
 
@@ -297,7 +282,7 @@ convert_creds(krb5_context context, krb5_creds *initiator_creds, krb5_creds *tar
 		goto end;
 	}
 
-end:
+ end:
 	krb5_free_cred_contents(context, &creds);
 	if (ccache)
 		krb5_cc_destroy(context, ccache);
@@ -321,7 +306,7 @@ doit(const char *user, int lifetime)
 	ret = krb5_init_context(&context);
 	if (ret) {
 		fprintf(stderr, "Cannot initialize Kerberos, exiting.\n");
-		return(ret);
+		return (ret);
 	}
 
 	ret = get_init_creds(context, lifetime, &my_creds);
@@ -330,8 +315,7 @@ doit(const char *user, int lifetime)
 
 	ret = krb5_parse_name(context, user, &target_creds.client);
 	if (ret) {
-		fprintf(stderr, "krb5_parse_name failed: %s.\n",
-				krb5_get_error_message(context, ret));
+		fprintf(stderr, "krb5_parse_name failed: %s.\n", krb5_get_error_message(context, ret));
 		goto end;
 	}
 
@@ -343,11 +327,10 @@ doit(const char *user, int lifetime)
 	}
 	realm++;
 
-	ret = krb5_build_principal(context, &target_creds.server,
-			strlen(realm), realm, KRB5_TGS_NAME, realm, NULL);
+	ret = krb5_build_principal(context, &target_creds.server, strlen(realm), realm, KRB5_TGS_NAME, realm, NULL);
 	if (ret) {
 		fprintf(stderr, "krb5_build_principal() for %s failed: %s.\n", user,
-				krb5_get_error_message(context, ret));
+			krb5_get_error_message(context, ret));
 		goto end;
 	}
 
@@ -357,7 +340,7 @@ doit(const char *user, int lifetime)
 
 	ret = output_creds(context, &target_creds);
 
-end:
+ end:
 	krb5_free_cred_contents(context, &my_creds);
 	krb5_free_cred_contents(context, &target_creds);
 	krb5_free_context(context);
@@ -371,30 +354,30 @@ main(int argc, char *argv[])
 	char *progname;
 	int ret;
 	int ch;
-	int lifetime = 24*3600;
+	int lifetime = 24 * 3600;
 
 	if ((progname = strrchr(argv[0], '/')))
 		progname++;
 	else
 		progname = argv[0];
 
-	 opterr = 0;
-	
-	 while ((ch = getopt(argc, argv, "l:")) != EOF)
+	opterr = 0;
+
+	while ((ch = getopt(argc, argv, "l:")) != EOF)
 		switch (ch) {
 		case 'l':
-		    lifetime = parse_time(optarg, "s");
-		    if (lifetime < 0) {
-			fprintf(stderr, "error: unparsable lifetime\n");
-			exit(1);
+			lifetime = parse_time(optarg, "s");
+			if (lifetime < 0) {
+				fprintf(stderr, "error: unparsable lifetime\n");
+				exit(1);
 
-		    }
-		    break;
-	       
+			}
+			break;
+
 		case '?':
 		default:
-		    opterr++;
-		    break;
+			opterr++;
+			break;
 		}
 
 	if (opterr || optind >= argc) {
@@ -406,5 +389,5 @@ main(int argc, char *argv[])
 
 	if (ret != 0)
 		ret = 1;
-	return(ret);
+	return (ret);
 }
