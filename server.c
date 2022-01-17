@@ -597,6 +597,7 @@ char *argv[];
 		len = length_EncTicketPart(&(request.ticket->ticket));
 		buf = (unsigned char *)malloc(len);
 		if (buf == NULL) {
+			syslog(LOG_ERR, "Not enough memory to store EncTicketPart");
 			sprintf(errbuf, "Server error\n");
 			response_status = STATUS_ERROR;
 			goto respond;
@@ -619,6 +620,7 @@ char *argv[];
 		len = length_Ticket(&request.tkt);
 		buf = (unsigned char *)malloc(len);
 		if (buf == NULL) {
+			syslog(LOG_ERR, "Not enough memory to store ticket");
 			sprintf(errbuf, "Server error\n");
 			response_status = STATUS_ERROR;
 			goto respond;
@@ -627,6 +629,7 @@ char *argv[];
 		encode_Ticket(buf + len - 1, len, &request.tkt, &len);
 		converted_ticket = (krb5_data *) malloc(sizeof(krb5_data));
 		if (converted_ticket == NULL) {
+			syslog(LOG_ERR, "Not enough memory for converted ticket");
 			sprintf(errbuf, "Server error\n");
 			response_status = STATUS_ERROR;
 			goto respond;
