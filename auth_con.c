@@ -24,6 +24,8 @@ setup_auth_context(krb5_context context,
 		   struct sockaddr_in *localaddr, struct sockaddr_in *remoteaddr, char *uniq)
 {
 	krb5_address laddr, raddr, *portlocal_addr;
+	krb5_address *p_laddr = NULL;
+	krb5_address *p_raddr = NULL;
 	krb5_rcache rcache;
 	krb5_data rcache_name;
 	char *outaddr;
@@ -48,25 +50,33 @@ setup_auth_context(krb5_context context,
 #endif
 #endif
 
+	if (localaddr) {
 #ifdef HEIMDAL
-	laddr.addr_type = KRB5_ADDRESS_INET;
-	laddr.address.length = sizeof(localaddr->sin_addr);
-	laddr.address.data = (void *)&(localaddr->sin_addr);
-
-	raddr.addr_type = KRB5_ADDRESS_INET;
-	raddr.address.length = sizeof(remoteaddr->sin_addr);
-	raddr.address.data = (void *)&(remoteaddr->sin_addr);
+		laddr.addr_type = KRB5_ADDRESS_INET;
+		laddr.address.length = sizeof(localaddr->sin_addr);
+		laddr.address.data = (void *)&(localaddr->sin_addr);
 #else
-	laddr.addrtype = ADDRTYPE_INET;
-	laddr.length = sizeof(localaddr->sin_addr);
-	laddr.contents = (krb5_octet *) & (localaddr->sin_addr);
-
-	raddr.addrtype = ADDRTYPE_INET;
-	raddr.length = sizeof(remoteaddr->sin_addr);
-	raddr.contents = (krb5_octet *) & (remoteaddr->sin_addr);
+		laddr.addrtype = ADDRTYPE_INET;
+		laddr.length = sizeof(localaddr->sin_addr);
+		laddr.contents = (krb5_octet *) & (localaddr->sin_addr);
 #endif
+		p_laddr = &laddr;
+	}
 
-	if (retval = krb5_auth_con_setaddrs(context, auth_context, &laddr, &raddr)) {
+	if (remoteaddr) {
+#ifdef HEIMDAL
+		raddr.addr_type = KRB5_ADDRESS_INET;
+		raddr.address.length = sizeof(remoteaddr->sin_addr);
+		raddr.address.data = (void *)&(remoteaddr->sin_addr);
+#else
+		raddr.addrtype = ADDRTYPE_INET;
+		raddr.length = sizeof(remoteaddr->sin_addr);
+		raddr.contents = (krb5_octet *) & (remoteaddr->sin_addr);
+#endif
+		p_raddr = &raddr;
+	}
+
+	if (retval = krb5_auth_con_setaddrs(context, auth_context, p_laddr, p_raddr)) {
 		sprintf(auth_con_error, "%s while setting auth_con addresses\n", error_message(retval));
 		return retval;
 	}
