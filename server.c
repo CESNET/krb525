@@ -319,7 +319,14 @@ char *argv[];
 	request.auth_data = recvauth_ticket->ticket.authorization_data;
 
 	/* Prepare to encrypt/decrypt */
-	if ((retval = setup_auth_context(context, auth_context, &lsin, &rsin, progname))) {
+#ifdef HEIMDAL
+	/* don't break on NAT'ed connections */
+	if (auth_context->remote_address) {
+		krb5_free_address(context, auth_context->remote_address);
+		auth_context->remote_address = NULL;
+	}
+#endif
+	if ((retval = setup_auth_context(context, auth_context, &lsin, NULL, progname))) {
 		com_err(progname, retval, "while preparing auth context (%s)", auth_con_error);
 		exit(1);
 	}
