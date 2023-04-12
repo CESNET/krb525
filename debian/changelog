@@ -1,3 +1,11 @@
+krb525 (1.8) stable; urgency=medium
+
+  * Avoided checking of client's IP addresses in Kerberos context, which would
+  * break NAT'ed connections
+  * Minor extension of logging
+
+ -- Daniel Kouril <kouril@ics.muni.cz>  Wed, 12 Apr 2023 15:18:20 +0200
+
 krb525 (1.7) stable; urgency=medium
 
   * Added a lifetime parameter to krb525_renew
