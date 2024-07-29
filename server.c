@@ -23,6 +23,7 @@
 #include <string.h>
 #include <errno.h>
 #include <arpa/inet.h>
+#include <sys/time.h>
 
 #include "krb525.h"
 #include "server.h"
@@ -63,6 +64,8 @@ char *argv[];
 	socklen_t namelen = sizeof(rsin);
 	int sock = -1;		/* incoming connection fd */
 	short port = 0;		/* If user specifies port */
+	int timeout = 0;	/* tcp connection timeout */
+	struct timeval tv;
 
 	krb5_data resp_data;
 
@@ -137,7 +140,7 @@ char *argv[];
 	 */
 	opterr = 0;
 
-	while ((ch = getopt(argc, argv, "c:dkp:t:s:Vr:C:")) != EOF)
+	while ((ch = getopt(argc, argv, "c:dkp:t:T:s:Vr:C:")) != EOF)
 		switch (ch) {
 		case 'c':
 			conf_file = optarg;
@@ -177,6 +180,10 @@ char *argv[];
 			keytab_name = optarg;
 			break;
 
+		case 'T':
+			timeout = atoi(optarg);
+			break;
+
 		case 'V':
 			printf("%s Version %s\n", progname, KRB525_VERSION_STRING);
 			exit(0);
@@ -205,6 +212,7 @@ char *argv[];
 			"   -p <port>                Port to listen on\n"
 			"   -s <service name>        My service name\n"
 			"   -t <keytab name>         Keytab to use\n"
+			"   -T <TCP timeout>         TCP connection timeout\n"
 			"   -V                       Print version and exit\n", progname);
 		syslog(LOG_ERR, "Exiting with argument error");
 		exit(1);
@@ -220,6 +228,10 @@ char *argv[];
 #else
 		use_keytab = 1;
 #endif
+	}
+
+	if (timeout < 1) {
+		timeout = TCP_DEFAULT_TIMEOUT;
 	}
 
 	/* Read my configuration file */
@@ -275,7 +287,7 @@ char *argv[];
 	if (port) {
 		int acc;
 
-		sock = make_accepting_sock(port);
+		sock = make_accepting_sock(port, timeout);
 
 		if (sock == -1) {
 			syslog(LOG_ERR, "Failed to create accepting socket: %s", netio_error);
@@ -301,6 +313,10 @@ char *argv[];
 		sock = 0;
 	}
 
+	tv.tv_sec = timeout;
+	tv.tv_usec = 0;
+	setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const void*)&tv, sizeof tv);
+	setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (const void*)&tv, sizeof tv);
 
 	namelen = sizeof(lsin);
 	if (getsockname(sock, (struct sockaddr *)&lsin, &namelen) < 0) {
