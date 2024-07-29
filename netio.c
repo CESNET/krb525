@@ -26,6 +26,7 @@
 #include <netdb.h>
 #include <string.h>
 #include <errno.h>
+#include <sys/time.h>
 
 #include "netio.h"
 
@@ -174,12 +175,12 @@ read_msg(krb5_context context, int fd, krb5_data * message)
  */
 
 int
-connect_to_server(char *hostname, int port)
+connect_to_server(char *hostname, int port, int timeout)
 {
 	struct sockaddr_in sin;
 	struct hostent *hp;
 	int sock;
-
+	struct timeval tv;
 
 	/* clear out the structure first */
 	(void)memset((char *)&sin, 0, sizeof(sin));
@@ -203,6 +204,11 @@ connect_to_server(char *hostname, int port)
 		return (-1);
 	}
 
+	tv.tv_sec = timeout;
+	tv.tv_usec = 0;
+	setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const void*)&tv, sizeof tv);
+	setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (const void*)&tv, sizeof tv);
+
 	/* connect to the server */
 	if (connect(sock, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
 		sprintf(netio_error, "Connection to %s port %d failed: %s.", hostname, port, strerror(errno));
@@ -219,17 +225,23 @@ connect_to_server(char *hostname, int port)
  * Make an accepting socket listening on given port number.
  */
 int
-make_accepting_sock(int port)
+make_accepting_sock(int port, int timeout)
 {
 	int sock;
 	int on = 1;
 	struct sockaddr_in addr;
+	struct timeval tv;
 
 
 	if ((sock = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
 		sprintf(netio_error, "socket() call failed: %s", strerror(errno));
 		return -1;
 	}
+
+	tv.tv_sec = timeout;
+	tv.tv_usec = 0;
+	setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const void*)&tv, sizeof tv);
+	setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (const void*)&tv, sizeof tv);
 
 	/* Let the socket be reused right away */
 	(void)setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on));

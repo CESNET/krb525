@@ -59,6 +59,7 @@ typedef struct krb525_authdata {
 typedef struct krb525_endpoint_t {
 	char *hostname;
 	unsigned short port;
+	int timeout;
 } krb525_endpoint_t;
 
 /* Default options if we are authenticating from keytab */
@@ -161,7 +162,7 @@ krb525_getportbyname(const char *service, const char *proto, short default_port)
 }
 
 static int
-parse_krb525_hosts(char **krb525_hosts, short port, int use_port, krb525_endpoint_t *** endpoints)
+parse_krb525_hosts(char **krb525_hosts, short port, int use_port, int timeout, krb525_endpoint_t *** endpoints)
 {
 	krb525_endpoint_t **tmp;
 	krb525_endpoint_t **eps = NULL;
@@ -214,6 +215,7 @@ parse_krb525_hosts(char **krb525_hosts, short port, int use_port, krb525_endpoin
 		}
 		eps[num - 1]->hostname = strdup(host);
 		eps[num - 1]->port = krb525_port;
+		eps[num - 1]->timeout = timeout;
 		eps[num] = NULL;
 		num++;
 	}
@@ -229,7 +231,7 @@ parse_krb525_hosts(char **krb525_hosts, short port, int use_port, krb525_endpoin
 }
 
 static int
-get_krb525_endpoints(krb5_context context, short port, char *realm, krb525_endpoint_t *** krb525_endpoints)
+get_krb525_endpoints(krb5_context context, short port, int timeout, char *realm, krb525_endpoint_t *** krb525_endpoints)
 {
 	krb5_error_code retval;
 	char **krb525_hosts = NULL;
@@ -283,7 +285,7 @@ get_krb525_endpoints(krb5_context context, short port, char *realm, krb525_endpo
 		goto end;
 	}
 
-	retval = parse_krb525_hosts(krb525_hosts, port, use_port, krb525_endpoints);
+	retval = parse_krb525_hosts(krb525_hosts, port, use_port, timeout, krb525_endpoints);
 	if (retval)
 		goto end;
 
@@ -296,6 +298,31 @@ get_krb525_endpoints(krb5_context context, short port, char *realm, krb525_endpo
 		free(default_realm);
 
 	return (retval);
+}
+
+
+static int
+get_krb525_timeout(krb5_context context, char *realm)
+{
+	int timeout;
+	char default_s[sizeof(int) + 1];
+	char *s;
+	krb5_data data_realm;
+
+	sprintf(default_s, "%d", TCP_DEFAULT_TIMEOUT);
+
+	data_realm.data = realm;
+	data_realm.length = strlen(realm);
+
+	krb5_appdefault_string(context, NULL, &data_realm, "krb525_timeout", default_s, &s);
+
+	timeout = atoi(s);
+
+	if (timeout < 1) {
+		timeout = TCP_DEFAULT_TIMEOUT;
+	}
+
+	return timeout;
 }
 
 static krb5_error_code
@@ -468,8 +495,8 @@ update_err_msg(char **err_msg, const char *fmt, ...)
 
 krb5_error_code
 krb525_convert_with_ccache(krb5_context context,
-			   char **hosts,
-			   int port, krb5_ccache ccache, char *cname, krb5_creds * in_creds, krb5_creds * out_creds)
+			   char **hosts, int port, int timeout,
+			   krb5_ccache ccache, char *cname, krb5_creds * in_creds, krb5_creds * out_creds)
 {
 	int sock;
 	krb5_creds *krb525_creds;
@@ -486,10 +513,14 @@ krb525_convert_with_ccache(krb5_context context,
 	realm = in_creds->server->realm.data;
 #endif
 
+	if (timeout < 1) {
+		timeout = get_krb525_timeout(context, realm);
+	}
+
 	if (hosts)
-		retval = parse_krb525_hosts(hosts, port, 0, &krb525_endpoints);
+		retval = parse_krb525_hosts(hosts, port, 0, timeout, &krb525_endpoints);
 	else
-		retval = get_krb525_endpoints(context, port, realm, &krb525_endpoints);
+		retval = get_krb525_endpoints(context, port, timeout, realm, &krb525_endpoints);
 	if (retval) {
 		snprintf(krb525_convert_error, sizeof(krb525_convert_error), "failed to find krb525 hosts\n");
 		return retval;
@@ -506,7 +537,7 @@ krb525_convert_with_ccache(krb5_context context,
 			continue;
 		}
 
-		sock = connect_to_server((*ep)->hostname, (*ep)->port);
+		sock = connect_to_server((*ep)->hostname, (*ep)->port, (*ep)->timeout);
 		if (sock < 0) {
 			update_err_msg(&tmp_err_msg, "%s" "Failed to connect to server %s (%s)\n",
 				       (tmp_err_msg) ? tmp_err_msg : "", (*ep)->hostname, error_message(errno));
@@ -550,15 +581,15 @@ krb525_convert_with_keytab(krb5_context context,
 	/* The implementation has been removed due to its utilization of deprecated calls
 	   and incompletness. If the call is ever needed, please refer to the VCS and
 	   fix it */
-
+	sprintf(krb525_convert_error, "The feature to convert with keytab has been removed.");
 	return ENOSYS;
 }
 
 
 krb5_error_code
-krb525_get_creds_ccache(krb5_context context, krb5_ccache ccache, krb5_creds * in_creds, krb5_creds * out_creds)
+krb525_get_creds_ccache(krb5_context context, krb5_ccache ccache, krb5_creds * in_creds, krb5_creds * out_creds, int timeout)
 {
-	return (krb525_convert_with_ccache(context, NULL, 0, ccache, NULL, in_creds, out_creds));
+	return (krb525_convert_with_ccache(context, NULL, 0, timeout, ccache, NULL, in_creds, out_creds));
 }
 
 

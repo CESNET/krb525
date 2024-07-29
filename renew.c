@@ -230,7 +230,7 @@ output_creds(krb5_context context, krb5_creds * target_creds)
 }
 
 static krb5_error_code
-convert_creds(krb5_context context, krb5_creds * initiator_creds, krb5_creds * target_creds)
+convert_creds(krb5_context context, krb5_creds * initiator_creds, krb5_creds * target_creds, int timeout)
 {
 	krb5_error_code ret;
 	krb5_ccache ccache = NULL;
@@ -276,7 +276,7 @@ convert_creds(krb5_context context, krb5_creds * initiator_creds, krb5_creds * t
 		goto end;
 	}
 
-	ret = krb525_get_creds_ccache(context, ccache, source_creds, target_creds);
+	ret = krb525_get_creds_ccache(context, ccache, source_creds, target_creds, timeout);
 	if (ret) {
 		fprintf(stderr, "Failed to translate ticket: %s.\n", krb525_convert_error);
 		goto end;
@@ -293,7 +293,7 @@ convert_creds(krb5_context context, krb5_creds * initiator_creds, krb5_creds * t
 }
 
 static int
-doit(const char *user, int lifetime)
+doit(const char *user, int lifetime, int timeout)
 {
 	int ret;
 	krb5_creds my_creds, target_creds;
@@ -334,7 +334,7 @@ doit(const char *user, int lifetime)
 		goto end;
 	}
 
-	ret = convert_creds(context, &my_creds, &target_creds);
+	ret = convert_creds(context, &my_creds, &target_creds, timeout);
 	if (ret)
 		goto end;
 
@@ -355,6 +355,7 @@ main(int argc, char *argv[])
 	int ret;
 	int ch;
 	int lifetime = 24 * 3600;
+	int timeout = 0;
 
 	if ((progname = strrchr(argv[0], '/')))
 		progname++;
@@ -363,17 +364,22 @@ main(int argc, char *argv[])
 
 	opterr = 0;
 
-	while ((ch = getopt(argc, argv, "l:")) != EOF)
+	while ((ch = getopt(argc, argv, "l:T:")) != EOF)
 		switch (ch) {
 		case 'l':
 			lifetime = parse_time(optarg, "s");
 			if (lifetime < 0) {
 				fprintf(stderr, "error: unparsable lifetime\n");
 				exit(1);
-
 			}
 			break;
-
+		case 'T':
+			timeout = atoi(optarg);
+			if (timeout < 1) {
+				fprintf(stderr, "error: timeout must be greater then 0\n");
+				exit(1);
+			}
+			break;
 		case '?':
 		default:
 			opterr++;
@@ -381,11 +387,11 @@ main(int argc, char *argv[])
 		}
 
 	if (opterr || optind >= argc) {
-		fprintf(stderr, "Usage: %s [ -l lifetime ] principal_name\n", progname);
+		fprintf(stderr, "Usage: %s [ -l lifetime ] [ -T timeout ] principal_name\n", progname);
 		exit(1);
 	}
 
-	ret = doit(argv[optind], lifetime);
+	ret = doit(argv[optind], lifetime, timeout);
 
 	if (ret != 0)
 		ret = 1;

@@ -14,7 +14,8 @@ krb525 \- Convert clients or servers on a Kerberos 5 ticket
 [\fB\-h\fP \fIserver_host\fP] [\fB\-i\fP \fIinput_cache\fP]
 [\fB\-k\fP] [\fB\-o\fP \fIoutput_cache\fP] [\fB\-p\fP \fIserver_port\fP]
 [\fB\-s\fP \fIservice\fP] [\fB\-S\fP \fItarget_service\fP]
-[\fB\-t\fP \fIkeytab_file\fP] [\fB\-u\fP \fIusername\fP] [\fB\-v\fP]
+[\fB\-t\fP \fIkeytab_file\fP] [\fB\-T\fP \fItimeout\fP]
+[\fB\-u\fP \fIusername\fP] [\fB\-v\fP]
 [\fB\-V\fP]
 .br
 .SH DESCRIPTION
@@ -118,6 +119,9 @@ specifies the keytab file to be used is
 Note that the 
 .B -k
 option must be specified for this to be meaningful.
+.TP
+\fB\-T\fP \fItimeout\fP
+specifies the TCP connection timeout in seconds. Must be greater then 0.
 .TP
 \fB\-u\fP \fIuser\fP
 specifies the owner of the resulting credentials file should be

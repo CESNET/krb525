@@ -167,6 +167,7 @@ char *argv[];
 	char *krb525_host = NULL;
 	char **krb525_hosts = NULL;
 	int krb525_port = KRB525_PORT;
+	int krb525_timeout = 0;
 
 	/* Credentials we are converting */
 	char *cname = NULL;
@@ -217,7 +218,7 @@ char *argv[];
 		progname = argv[0];
 
 	/* Process arguments */
-	while ((arg = getopt(argc, argv, "aAc:C:g:h:i:ko:p:s:S:t:u:vVr:")) != EOF)
+	while ((arg = getopt(argc, argv, "aAc:C:g:h:i:ko:p:s:S:t:T:u:vVr:")) != EOF)
 		switch (arg) {
 		case 'a':
 #ifdef AFS_KRB5
@@ -281,6 +282,14 @@ char *argv[];
 			keytab_name = optarg;
 			break;
 
+		case 'T':
+			krb525_timeout = atoi(optarg);
+			if (krb525_timeout < 1) {
+				fprintf(stderr, "timeout must be greater then 0\n");
+				arg_error++;
+			}
+			break;
+
 		case 'u':
 			cache_owner = optarg;
 			break;
@@ -338,6 +347,7 @@ char *argv[];
 			"   -s <service name>        Service for credentials to convert\n"
 			"   -S <target service>      Service to convert to\n"
 			"   -t <keytab file>         Keytab file to use\n"
+			"   -T <tcp timeout>         TCP connection timeout\n"
 			"   -u <username>            Specify owner of output cache\n"
 			"   -v                       Verbose mode\n"
 			"   -V                       Print version and exit\n", progname);
@@ -663,8 +673,8 @@ char *argv[];
 	target_creds.server = target_sprinc;
 	if (!use_keytab)
 		retval = krb525_convert_with_ccache(context,
-						    krb525_hosts,
-						    krb525_port, source_ccache, cname, &creds, &target_creds);
+						    krb525_hosts, krb525_port, krb525_timeout,
+						    source_ccache, cname, &creds, &target_creds);
 	else
 		/* Not sure what's supposed to be done with the keytab,
 		   initial creds were already obtained above. */
