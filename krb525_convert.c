@@ -302,19 +302,15 @@ get_krb525_endpoints(krb5_context context, short port, int timeout, char *realm,
 
 
 static int
-get_krb525_timeout(krb5_context context, char *realm)
+get_krb525_timeout(krb5_context context)
 {
 	int timeout;
 	char default_s[sizeof(int) + 1];
 	char *s;
-	krb5_data data_realm;
 
 	sprintf(default_s, "%d", TCP_DEFAULT_TIMEOUT);
 
-	data_realm.data = realm;
-	data_realm.length = strlen(realm);
-
-	krb5_appdefault_string(context, NULL, &data_realm, "krb525_timeout", default_s, &s);
+	krb5_appdefault_string(context, NULL, NULL, "krb525_timeout", default_s, &s);
 
 	timeout = atoi(s);
 
@@ -514,7 +510,7 @@ krb525_convert_with_ccache(krb5_context context,
 #endif
 
 	if (timeout < 1) {
-		timeout = get_krb525_timeout(context, realm);
+		timeout = get_krb525_timeout(context);
 	}
 
 	if (hosts)
