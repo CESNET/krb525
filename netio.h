@@ -32,11 +32,11 @@ extern int read_msg(krb5_context,
 
 extern int connect_to_server(char *,
 			     int,
-				 int);
+			     int);
 
 
 extern int make_accepting_sock(int,
-			     int);
+			       int);
 
 
 

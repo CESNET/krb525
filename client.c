@@ -167,7 +167,7 @@ char *argv[];
 	char *krb525_host = NULL;
 	char **krb525_hosts = NULL;
 	int krb525_port = KRB525_PORT;
-	int krb525_timeout = 0;
+	int krb525_timeout = -1;
 
 	/* Credentials we are converting */
 	char *cname = NULL;
@@ -284,8 +284,8 @@ char *argv[];
 
 		case 'T':
 			krb525_timeout = atoi(optarg);
-			if (krb525_timeout < 1) {
-				fprintf(stderr, "timeout must be greater then 0\n");
+			if (krb525_timeout < 0) {
+				fprintf(stderr, "timeout must be greater or equal 0\n");
 				arg_error++;
 			}
 			break;

@@ -314,8 +314,8 @@ get_krb525_timeout(krb5_context context)
 
 	timeout = atoi(s);
 
-	if (timeout < 1) {
-		timeout = TCP_DEFAULT_TIMEOUT;
+	if (timeout < 0) {
+		timeout = 0;
 	}
 
 	return timeout;
@@ -509,7 +509,7 @@ krb525_convert_with_ccache(krb5_context context,
 	realm = in_creds->server->realm.data;
 #endif
 
-	if (timeout < 1) {
+	if (timeout < 0) {
 		timeout = get_krb525_timeout(context);
 	}
 
