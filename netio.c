@@ -204,10 +204,12 @@ connect_to_server(char *hostname, int port, int timeout)
 		return (-1);
 	}
 
-	tv.tv_sec = timeout;
-	tv.tv_usec = 0;
-	setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const void*)&tv, sizeof tv);
-	setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (const void*)&tv, sizeof tv);
+	if (timeout > 0) {
+		tv.tv_sec = timeout;
+		tv.tv_usec = 0;
+		setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const void*)&tv, sizeof tv);
+		setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (const void*)&tv, sizeof tv);
+	}
 
 	/* connect to the server */
 	if (connect(sock, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
@@ -238,10 +240,12 @@ make_accepting_sock(int port, int timeout)
 		return -1;
 	}
 
-	tv.tv_sec = timeout;
-	tv.tv_usec = 0;
-	setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const void*)&tv, sizeof tv);
-	setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (const void*)&tv, sizeof tv);
+	if (timeout > 0) {
+		tv.tv_sec = timeout;
+		tv.tv_usec = 0;
+		setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const void*)&tv, sizeof tv);
+		setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (const void*)&tv, sizeof tv);
+	}
 
 	/* Let the socket be reused right away */
 	(void)setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on));

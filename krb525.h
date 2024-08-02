@@ -12,7 +12,7 @@
 
 #define KRB525_PORT		6565
 
-#define TCP_DEFAULT_TIMEOUT		5
+#define TCP_DEFAULT_TIMEOUT	5
 
 /*
  * Version string for sendauth/recvauth

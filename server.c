@@ -64,7 +64,7 @@ char *argv[];
 	socklen_t namelen = sizeof(rsin);
 	int sock = -1;		/* incoming connection fd */
 	short port = 0;		/* If user specifies port */
-	int timeout = 0;	/* tcp connection timeout */
+	int timeout = TCP_DEFAULT_TIMEOUT;	/* tcp connection timeout */
 	struct timeval tv;
 
 	krb5_data resp_data;
@@ -230,10 +230,6 @@ char *argv[];
 #endif
 	}
 
-	if (timeout < 1) {
-		timeout = TCP_DEFAULT_TIMEOUT;
-	}
-
 	/* Read my configuration file */
 	if (init_conf(conf_file)) {
 		syslog(LOG_ERR, "Reading configuration file: %s", srv_conf_error);
@@ -313,10 +309,12 @@ char *argv[];
 		sock = 0;
 	}
 
-	tv.tv_sec = timeout;
-	tv.tv_usec = 0;
-	setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const void*)&tv, sizeof tv);
-	setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (const void*)&tv, sizeof tv);
+	if (timeout > 0) {
+		tv.tv_sec = timeout;
+		tv.tv_usec = 0;
+		setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const void*)&tv, sizeof tv);
+		setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (const void*)&tv, sizeof tv);
+	}
 
 	namelen = sizeof(lsin);
 	if (getsockname(sock, (struct sockaddr *)&lsin, &namelen) < 0) {

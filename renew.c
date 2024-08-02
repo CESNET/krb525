@@ -355,7 +355,7 @@ main(int argc, char *argv[])
 	int ret;
 	int ch;
 	int lifetime = 24 * 3600;
-	int timeout = 0;
+	int timeout = -1;
 
 	if ((progname = strrchr(argv[0], '/')))
 		progname++;
@@ -375,8 +375,8 @@ main(int argc, char *argv[])
 			break;
 		case 'T':
 			timeout = atoi(optarg);
-			if (timeout < 1) {
-				fprintf(stderr, "error: timeout must be greater then 0\n");
+			if (timeout < 0) {
+				fprintf(stderr, "error: timeout must be greater or equal 0\n");
 				exit(1);
 			}
 			break;

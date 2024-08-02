@@ -17,7 +17,7 @@ krb5_error_code
 krb525_convert_with_ccache(krb5_context context,
 			   char         **hosts,
 			   int          port,
-			   int 			timeout,
+			   int          timeout,
 			   krb5_ccache  ccache,
 			   char         *cname,
 			   krb5_creds   *in_creds,
