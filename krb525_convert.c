@@ -62,6 +62,11 @@ typedef struct krb525_endpoint_t {
 	int timeout;
 } krb525_endpoint_t;
 
+typedef struct cache_endpoint_t {
+	char hostname[255];
+	long timestamp;
+} cache_endpoint_t;
+
 /* Default options if we are authenticating from keytab */
 #define KEYTAB_DEFAULT_TKT_OPTIONS	KDC_OPT_FORWARDABLE
 
@@ -70,6 +75,10 @@ typedef struct krb525_endpoint_t {
 
 /* Default options for credentials for krb525d */
 #define GATEWAY_DEFAULT_TKT_OPTIONS	0
+
+/* Default values for caching a responding endpoint */
+#define EP_CACHE_FILE              	"/tmp/krb525_endpoint.cache"
+#define EP_CACHE_DEFAULT_TIMEOUT   	30 /* seconds */
 
 
 char krb525_convert_error[2048] = "";
@@ -300,17 +309,16 @@ get_krb525_endpoints(krb5_context context, short port, int timeout, char *realm,
 	return (retval);
 }
 
-
-static int
-get_krb525_timeout(krb5_context context)
+static unsigned int
+get_krb525_appdefault_uint(krb5_context context, const char *option, int default_value)
 {
 	int timeout;
 	char default_s[sizeof(int) + 1];
 	char *s;
 
-	sprintf(default_s, "%d", TCP_DEFAULT_TIMEOUT);
+	sprintf(default_s, "%d", default_value);
 
-	krb5_appdefault_string(context, NULL, NULL, "krb525_timeout", default_s, &s);
+	krb5_appdefault_string(context, NULL, NULL, option, default_s, &s);
 
 	timeout = atoi(s);
 
@@ -318,7 +326,92 @@ get_krb525_timeout(krb5_context context)
 		timeout = 0;
 	}
 
-	return timeout;
+	return (unsigned int) timeout;
+}
+
+static int
+modify_krb525_endpoints_cache(krb525_endpoint_t **ep, long timestamp)
+{
+	FILE *f;
+	cache_endpoint_t cache;
+
+	if (ep == NULL || timestamp < 1) {
+		if (access(EP_CACHE_FILE, F_OK) == 0) {
+			remove(EP_CACHE_FILE);
+		}
+		return 0;
+	}
+
+	strcpy(cache.hostname, (*ep)->hostname);
+	cache.timestamp = timestamp;
+
+	if ((f = fopen(EP_CACHE_FILE, "w")) == NULL) {
+		return -1;
+	}
+
+	if (fwrite(&cache, sizeof(cache), 1, f) == 0) {
+		fclose(f);
+		return -1;
+	}
+
+	fclose(f);
+	return 0;
+}
+
+static int
+sort_krb525_endpoints_by_cache(krb525_endpoint_t *** krb525_endpoints, int cache_timeout)
+{
+	FILE *f;
+	cache_endpoint_t cache;
+	krb525_endpoint_t **ep = NULL;
+	krb525_endpoint_t *tmp;
+
+	/*
+	 * Non existing cache file means primary endpoint
+	 * is responding or cache_timeout < 1 means caching is disabled
+	 */
+	if (access(EP_CACHE_FILE, F_OK) || cache_timeout < 1) {
+		return 0;
+	}
+
+	if ((f = fopen(EP_CACHE_FILE, "r")) == NULL) {
+		return -1;
+	}
+
+	if (fread(&cache, sizeof(cache), 1, f) != 1) {
+		return -1;
+	}
+
+	fclose(f);
+
+	if (cache.timestamp + cache_timeout < time(NULL)) {
+		remove(EP_CACHE_FILE);
+		return 0;
+	}
+
+	if (krb525_endpoints == NULL) {
+		return -1;
+	}
+
+	ep = *krb525_endpoints;
+
+	/*
+	 * Just switching responding endpoint with primary one.
+	 * Returning positive number means the endpoints cache
+	 * is currently in use.
+	 */
+	int i = 0;
+	while (ep && ep[i]) {
+		if (strcmp(cache.hostname, ep[i]->hostname) == 0 && i > 0) {
+			tmp = ep[0];
+			ep[0] = ep[i];
+			ep[i] = tmp;
+			return cache.timestamp;
+		}
+		i++;
+	}
+
+	return 0;
 }
 
 static krb5_error_code
@@ -502,6 +595,8 @@ krb525_convert_with_ccache(krb5_context context,
 	krb525_endpoint_t **krb525_endpoints = NULL;
 	krb525_endpoint_t **ep = NULL;
 	char *tmp_err_msg = NULL;
+	long cache_timestamp;
+	int cache_timeout;
 
 #ifdef HEIMDAL
 	realm = in_creds->server->realm;
@@ -510,7 +605,7 @@ krb525_convert_with_ccache(krb5_context context,
 #endif
 
 	if (timeout < 0) {
-		timeout = get_krb525_timeout(context);
+		timeout = get_krb525_appdefault_uint(context, "krb525_timeout", TCP_DEFAULT_TIMEOUT);
 	}
 
 	if (hosts)
@@ -524,12 +619,16 @@ krb525_convert_with_ccache(krb5_context context,
 
 	auth_data.data = in_creds->authdata;
 
+	cache_timeout = get_krb525_appdefault_uint(context, "krb525_cache_timeout", EP_CACHE_DEFAULT_TIMEOUT);
+	cache_timestamp = sort_krb525_endpoints_by_cache(&krb525_endpoints, cache_timeout);
+
 	retval = -1;
 	for (ep = krb525_endpoints; ep && *ep; ep++) {
 		retval = get_krb525_creds_ccache(context, ccache, cname, (*ep)->hostname, &auth_data, &krb525_creds);
 		if (retval) {
 			update_err_msg(&tmp_err_msg, "%s" "Failed to get credentials for server %s (%s)\n",
 				       (tmp_err_msg) ? tmp_err_msg : "", (*ep)->hostname, krb525_convert_error);
+			cache_timestamp = time(NULL);
 			continue;
 		}
 
@@ -538,6 +637,7 @@ krb525_convert_with_ccache(krb5_context context,
 			update_err_msg(&tmp_err_msg, "%s" "Failed to connect to server %s (%s)\n",
 				       (tmp_err_msg) ? tmp_err_msg : "", (*ep)->hostname, error_message(errno));
 			retval = -1;
+			cache_timestamp = time(NULL);
 			continue;
 		}
 
@@ -546,7 +646,13 @@ krb525_convert_with_ccache(krb5_context context,
 		if (retval) {
 			update_err_msg(&tmp_err_msg, "%s" "Failed to convert credentials with %s (%s)\n",
 				       (tmp_err_msg) ? tmp_err_msg : "", (*ep)->hostname, krb525_convert_error);
+			cache_timestamp = time(NULL);
 			continue;
+		}
+
+		if (modify_krb525_endpoints_cache(ep, cache_timestamp)) {
+			update_err_msg(&tmp_err_msg, "%s" "Failed to store endpoints cache\n",
+				       (tmp_err_msg) ? tmp_err_msg : "");
 		}
 
 		retval = 0;
@@ -554,6 +660,7 @@ krb525_convert_with_ccache(krb5_context context,
 	}
 
 	if (retval) {
+		modify_krb525_endpoints_cache(NULL, 0);
 		snprintf(krb525_convert_error, sizeof(krb525_convert_error), "%s",
 			 (tmp_err_msg) ? tmp_err_msg : "Failed to contact k525 servers");
 		goto end;
